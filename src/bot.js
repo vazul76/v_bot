@@ -8,6 +8,7 @@ const facebookCommand = require('./commands/facebook');
 const tiktokCommand = require('./commands/tiktok');
 const instagramCommand = require('./commands/instagram');
 const quoteCommand = require('./commands/quote');
+const imageCommand = require('./commands/image'); // NEW
 
 
 class WABot {
@@ -42,11 +43,11 @@ class WABot {
         });
 
         this.client.on('loading_screen', (percent, message) => {
-            logger.info(`Loading:  ${percent}% - ${message}`);
+            logger.info(`Loading: ${percent}% - ${message}`);
         });
 
         this.client.on('authenticated', () => {
-            logger.success('Autentikasi berhasil!  ');
+            logger.success('Autentikasi berhasil!');
         });
 
         this.client.on('auth_failure', (msg) => {
@@ -132,6 +133,12 @@ class WABot {
                     logger.info('Menjalankan command .quote');
                     await quoteCommand.sendQuote(msg);
                     break;
+                case 'image':
+                case 'img':
+                case 'generate':
+                    logger.info('Menjalankan command .image');
+                    await imageCommand.generateImage(msg, this.client, body);
+                    break;
                 case 'help':
                 case 'menu':
                     logger.info('Menjalankan command help');
@@ -145,7 +152,7 @@ class WABot {
             logger.error('Error handling message:', error);
             try {
                 await helpers.reactError(msg);
-                await helpers.replyWithTyping(msg, this.client, '❌ Terjadi kesalahan saat memproses pesan!');
+                await helpers.replyWithTyping(msg, this.client, '❌ Terjadi kesalahan saat memproses pesan! ');
             } catch (replyError) {
                 logger.error('Error sending error reply:', replyError);
             }
@@ -153,7 +160,6 @@ class WABot {
     }
 
     async sendHelp(msg) {
-        // React: Command received
         await helpers.reactCommandReceived(msg);
 
         const helpText = `*🤖 V-ULTIMATE BOT - MENU*
@@ -171,14 +177,15 @@ class WABot {
 └ \`.ig [link]\` - Instagram Media
 
 *🤖 AI FEATURES*
-└ \`.quote\` - Motivasi AI (Groq Llama 3.3)
+├ \`.quote\` - Motivasi AI (Groq Llama 3.3)
+└ \`.image [prompt]\` - Generate Image (Pollinations AI)
 
 *💡 TIPS: *
 • Bisa reply pesan yang ada link, gak perlu ketik ulang! 
 • Bot typing 2 detik sebelum reply
 • Reactions:  🫡 = received, ✅ = success, ❌ = error
 
-_Bot by vazul76 | v1.2.0_`;
+_Bot by vazul76 | v1.3.0_`;
 
         await helpers.replyWithTyping(msg, this.client, helpText, 2000);
         await helpers.reactSuccess(msg);
