@@ -3,137 +3,126 @@ const fs = require('fs');
 const path = require('path');
 const ytdlpExec = require('yt-dlp-exec');
 const logger = require('../utils/logger');
+const helpers = require('../utils/helpers');
 
 class InstagramDownloader {
     constructor() {
         this.tempDir = path.join(__dirname, '../../temp');
         this.maxMediaSize = 64 * 1024 * 1024; // 64MB
 
-        // Ensure temp directory exists
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
     }
 
-    /**
-     * Download Instagram media (video/photo)
-     */
     async downloadMedia(msg, messageBody) {
         let tempFilePath = null;
 
         try {
             logger.info('Memproses command .ig');
 
-            // Extract URL from message
+            // React: Command received
+            await helpers.reactCommandReceived(msg);
+
             const url = await this.extractURL(messageBody, msg);
 
-            if (!url) {
+            if (! url) {
                 logger.warn('URL tidak ditemukan');
-                return msg.reply('❌ Format: .ig [link instagram]\n\nContoh: .ig https://www.instagram.com/p/xxxxx');
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, '❌ Format:  .ig [link instagram]\n\n💡 Contoh:\n.ig https://www.instagram.com/p/xxxxx\n\nAtau reply pesan yang ada link Instagram dengan .ig');
             }
 
             if (!this.isValidInstagramURL(url)) {
                 logger.warn('URL Instagram tidak valid');
-                return msg.reply('❌ Link Instagram tidak valid!\n\nGunakan link dari instagram.com');
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, '❌ Link Instagram tidak valid!\n\n✅ Gunakan link dari instagram.com');
             }
 
-            logger.info(`Downloading media from Instagram: ${url}`);
-            await msg.reply('⏳ Mendownload dari Instagram.\n🤬 Nunggu bentar, ribet amat.');
+            logger.info(`Downloading media from: ${url}`);
+            
+            // React: Processing
+            await helpers.reactProcessing(msg);
+            await helpers.replyWithTyping(msg, msg.client, '⏳ Mendownload dari Instagram...\n🤬*Lagi proses, SABAR!*', 1500);
 
-            // Generate temp file path
             const outputTemplate = path.join(this.tempDir, `ig_media_${Date.now()}.%(ext)s`);
-            const expectedPathMp4 = outputTemplate.replace('.%(ext)s', '.mp4');
-            const expectedPathJpg = outputTemplate.replace('.%(ext)s', '.jpg');
-            tempFilePath = expectedPathMp4; // Default to mp4
 
-            // Download media with yt-dlp
             try {
                 await ytdlpExec(url, {
                     format: 'best',
                     output: outputTemplate,
-                    noPlaylist: true,
                     noWarnings: true
                 });
             } catch (dlError) {
-                // Check if file exists even on error
-                if ((!fs.existsSync(expectedPathMp4) || fs.statSync(expectedPathMp4).size === 0) &&
-                    (!fs.existsSync(expectedPathJpg) || fs.statSync(expectedPathJpg).size === 0)) {
-                    throw dlError;
-                }
-                logger.warn('yt-dlp exited with error but file was downloaded:', dlError.message);
+                logger.warn('yt-dlp error:', dlError.message);
             }
 
-            // Determine which file was downloaded
-            if (fs.existsSync(expectedPathMp4)) {
-                tempFilePath = expectedPathMp4;
-            } else if (fs.existsSync(expectedPathJpg)) {
-                tempFilePath = expectedPathJpg;
-            } else {
+            // Find downloaded file (could be .mp4 or .jpg)
+            const files = fs.readdirSync(this.tempDir).filter(f => f.startsWith(`ig_media_`));
+            if (files.length === 0) {
                 throw new Error('File download gagal');
             }
 
-            // Check file size
+            tempFilePath = path.join(this.tempDir, files[files.length - 1]);
+            
             const stats = fs.statSync(tempFilePath);
             logger.info(`Media file size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
 
             if (stats.size > this.maxMediaSize) {
                 logger.warn('File terlalu besar untuk WhatsApp');
-                return msg.reply(`❌ File terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)\n\nLimit WhatsApp: 64MB`);
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, `❌ Media terlalu besar!  (${(stats.size / 1024 / 1024).toFixed(2)}MB)\n\n⚠️ Limit WhatsApp: 64MB`);
             }
 
-            // Determine file type
-            const isVideo = tempFilePath.endsWith('.mp4');
             const mediaBuffer = fs.readFileSync(tempFilePath);
-            const mediaMedia = new MessageMedia(
-                isVideo ? 'video/mp4' : 'image/jpeg',
+            const ext = path.extname(tempFilePath).toLowerCase();
+            
+            let mimetype = 'image/jpeg';
+            if (ext === '.mp4') mimetype = 'video/mp4';
+            else if (ext === '.png') mimetype = 'image/png';
+
+            const media = new MessageMedia(
+                mimetype,
                 mediaBuffer.toString('base64'),
-                isVideo ? 'Vazul-instagram-video.mp4' : 'Vazul-instagram-photo.jpg'
+                `Vazul-instagram${ext}`
             );
 
-            logger.info(`Mengirim ${isVideo ? 'video' : 'photo'} sebagai document...`);
-            await msg.reply(mediaMedia, null, {
+            logger.info('Mengirim media...');
+            await helpers.simulateTyping(msg, msg.client, 1500);
+            await msg.reply(media, null, {
                 sendMediaAsDocument: true
             });
 
+            // React: Success
+            await helpers.reactSuccess(msg);
             logger.success('Media Instagram berhasil dikirim!');
 
         } catch (error) {
             logger.error('Error downloading Instagram media:', error.message);
             logger.error('Stack trace:', error.stack);
 
-            if (error.message.includes('Login required') || error.message.includes('login')) {
-                await msg.reply('❌ Instagram memerlukan login!\n\nCoba post yang public atau gunakan link lain.');
+            await helpers.reactError(msg);
+
+            if (error.message.includes('not available') || error.message.includes('unavailable')) {
+                await helpers.replyWithTyping(msg, msg.client, '❌ Media tidak tersedia atau sudah dihapus!');
             } else if (error.message.includes('Private')) {
-                await msg.reply('❌ Akun atau post ini private!');
-            } else if (error.message.includes('not available') || error.message.includes('unavailable')) {
-                await msg.reply('❌ Post tidak tersedia atau sudah dihapus!');
+                await helpers.replyWithTyping(msg, msg.client, '❌ Akun atau post ini bersifat private!');
             } else {
-                await msg.reply('❌ Gagal mendownload dari Instagram!\n\nInstagram sering block automated downloads. Coba link lain atau coba lagi nanti.');
+                await helpers.replyWithTyping(msg, msg.client, '❌ Gagal mendownload dari Instagram!\n\n💡 Pastikan link valid dan media tersedia.');
             }
         } finally {
-            // Cleanup temp files
-            const expectedPathMp4 = tempFilePath ? tempFilePath : null;
-            const expectedPathJpg = tempFilePath ? tempFilePath.replace('.mp4', '.jpg') : null;
-            this.cleanupTempFiles([expectedPathMp4, expectedPathJpg]);
+            this.cleanupTempFiles([tempFilePath]);
         }
     }
 
-    /**
-     * Extract Instagram URL from message
-     */
     async extractURL(messageBody, msg) {
-        // Remove command prefix
         const text = messageBody.replace(/^\.ig\s+/i, '').trim();
-
-        // Try to find URL in the text
-        const urlRegex = /(https?:\/\/)?(www\.)?(instagram\.com)\/(p|reel|reels)\/[^\s]+/gi;
+        const urlRegex = /(https?:\/\/)?(www\.)?(instagram\.com|instagr\.am)\/[^\s]+/gi;
         let matches = text.match(urlRegex);
 
         if (matches) {
             return matches[0];
         }
 
-        // If no URL found in command, check quoted message
         if (msg.hasQuotedMsg) {
             try {
                 const quotedMsg = await msg.getQuotedMessage();
@@ -151,17 +140,11 @@ class InstagramDownloader {
         return null;
     }
 
-    /**
-     * Validate Instagram URL
-     */
     isValidInstagramURL(url) {
-        const instagramRegex = /^(https?:\/\/)?(www\.)?(instagram\.com)\/(p|reel|reels)\/.+/;
+        const instagramRegex = /^(https?:\/\/)?(www\.)?(instagram\.com|instagr\.am)\/(p|reel|tv)\/[a-zA-Z0-9_-]+/;
         return instagramRegex.test(url);
     }
 
-    /**
-     * Cleanup temporary files
-     */
     cleanupTempFiles(files) {
         files.forEach(file => {
             if (file && fs.existsSync(file)) {

@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const ytdlpExec = require('yt-dlp-exec');
 const logger = require('../utils/logger');
+const helpers = require('../utils/helpers');
 
 class YouTubeDownloader {
     constructor() {
@@ -25,21 +26,29 @@ class YouTubeDownloader {
         try {
             logger.info('Memproses command .ytmp3');
 
+            // React:  Command received
+            await helpers.reactCommandReceived(msg);
+
             // Extract URL from message
             const url = await this.extractURL(messageBody, msg);
 
             if (!url) {
                 logger.warn('URL tidak ditemukan');
-                return msg.reply('❌ Format: .ytmp3 [link youtube]\n\nContoh: .ytmp3 https://www.youtube.com/watch?v=xxxxx');
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, '❌ Format:  .ytmp3 [link youtube]\n\n💡 Contoh:\n.ytmp3 https://www.youtube.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link YouTube dengan .ytmp3');
             }
 
             if (!this.isValidYouTubeURL(url)) {
                 logger.warn('URL YouTube tidak valid');
-                return msg.reply('❌ Link YouTube tidak valid!\n\nGunakan link dari youtube.com atau youtu.be');
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, '❌ Link YouTube tidak valid!\n\n✅ Gunakan link dari youtube.com atau youtu.be');
             }
 
             logger.info(`Downloading audio from: ${url}`);
-            await msg.reply('⏳ Mendownload audio dari YouTube.\n🤬 Nunggu bentar, ribet amat.');
+            
+            // React: Processing
+            await helpers.reactProcessing(msg);
+            await helpers.replyWithTyping(msg, msg.client, '⏳ Mendownload audio dari YouTube...\n🤬*Lagi proses, SABAR!* ', 1500);
 
             // Generate temp file path
             const outputTemplate = path.join(this.tempDir, `yt_audio_${Date.now()}.%(ext)s`);
@@ -70,7 +79,8 @@ class YouTubeDownloader {
 
             if (stats.size > this.maxAudioSize) {
                 logger.warn('File terlalu besar untuk WhatsApp');
-                return msg.reply(`❌ Audio terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)\n\nLimit WhatsApp: 16MB untuk audio`);
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, `❌ Audio terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)\n\n⚠️ Limit WhatsApp: 16MB untuk audio`);
             }
 
             // Read file and create MessageMedia
@@ -81,23 +91,28 @@ class YouTubeDownloader {
                 'Vazul-youtube-audio.mp3'
             );
 
-            logger.info('Mengirim audio sebagai document...');
+            logger.info('Mengirim audio...');
+            await helpers.simulateTyping(msg, msg.client, 1500);
             await msg.reply(audioMedia, null, {
                 sendMediaAsDocument: true
             });
 
-            logger.success('Audio berhasil dikirim!');
+            // React: Success
+            await helpers.reactSuccess(msg);
+            logger.success('Audio berhasil dikirim! ');
 
         } catch (error) {
             logger.error('Error downloading audio:', error.message);
             logger.error('Stack trace:', error.stack);
 
+            await helpers.reactError(msg);
+
             if (error.message.includes('Video unavailable') || error.message.includes('not available')) {
-                await msg.reply('❌ Video tidak tersedia atau sudah dihapus!');
+                await helpers.replyWithTyping(msg, msg.client, '❌ Video tidak tersedia atau sudah dihapus! ');
             } else if (error.message.includes('Private video')) {
-                await msg.reply('❌ Video ini bersifat private!');
+                await helpers.replyWithTyping(msg, msg.client, '❌ Video ini bersifat private!');
             } else {
-                await msg.reply('❌ Gagal mendownload audio dari YouTube!\n\nPastikan link valid dan video tersedia.');
+                await helpers.replyWithTyping(msg, msg.client, '❌ Gagal mendownload audio dari YouTube!\n\n💡 Pastikan link valid dan video tersedia.');
             }
         } finally {
             // Cleanup temp files
@@ -114,28 +129,36 @@ class YouTubeDownloader {
         try {
             logger.info('Memproses command .yt');
 
+            // React: Command received
+            await helpers.reactCommandReceived(msg);
+
             // Extract URL from message
             const url = await this.extractURL(messageBody, msg);
 
             if (!url) {
                 logger.warn('URL tidak ditemukan');
-                return msg.reply('❌ Format: .yt [link youtube]\n\nContoh: .yt https://www.youtube.com/watch?v=xxxxx');
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, '❌ Format: .yt [link youtube]\n\n💡 Contoh:\n.yt https://www.youtube.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link YouTube dengan .yt');
             }
 
             if (!this.isValidYouTubeURL(url)) {
                 logger.warn('URL YouTube tidak valid');
-                return msg.reply('❌ Link YouTube tidak valid!\n\nGunakan link dari youtube.com atau youtu.be');
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, '❌ Link YouTube tidak valid!\n\n✅ Gunakan link dari youtube.com atau youtu.be');
             }
 
             logger.info(`Downloading video from: ${url}`);
-            await msg.reply('⏳ Mendownload video dari YouTube.\n🤬 Nunggu bentar, ribet amat.');
+            
+            // React: Processing
+            await helpers.reactProcessing(msg);
+            await helpers.replyWithTyping(msg, msg.client, '⏳ Mendownload video dari YouTube...\n🤬*Lagi proses, SABAR!*', 1500);
 
             // Generate temp file path
             const outputTemplate = path.join(this.tempDir, `yt_video_${Date.now()}.%(ext)s`);
             const expectedPath = outputTemplate.replace('.%(ext)s', '.mp4');
             tempFilePath = expectedPath;
 
-            // Download video with yt-dlp (simplified format for better compatibility)
+            // Download video with yt-dlp
             try {
                 await ytdlpExec(url, {
                     format: 'best[ext=mp4]/best',
@@ -144,9 +167,7 @@ class YouTubeDownloader {
                     noWarnings: true
                 });
             } catch (dlError) {
-                // yt-dlp might exit with error but file could still be downloaded
-                // Check if file exists before throwing error
-                if (!fs.existsSync(tempFilePath) || fs.statSync(tempFilePath).size === 0) {
+                if (! fs.existsSync(tempFilePath) || fs.statSync(tempFilePath).size === 0) {
                     throw dlError;
                 }
                 logger.warn('yt-dlp exited with error but file was downloaded:', dlError.message);
@@ -163,7 +184,8 @@ class YouTubeDownloader {
 
             if (stats.size > this.maxVideoSize) {
                 logger.warn('File terlalu besar untuk WhatsApp');
-                return msg.reply(`❌ Video terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)\n\nLimit WhatsApp: 64MB untuk video\n\nCoba video yang lebih pendek atau gunakan .ytmp3 untuk audio saja.`);
+                await helpers.reactError(msg);
+                return helpers.replyWithTyping(msg, msg.client, `❌ Video terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)\n\n⚠️ Limit WhatsApp:  64MB untuk video\n\n💡 Coba video yang lebih pendek atau gunakan .ytmp3 untuk audio saja`);
             }
 
             // Read file and create MessageMedia
@@ -174,23 +196,28 @@ class YouTubeDownloader {
                 'Vazul-youtube-video.mp4'
             );
 
-            logger.info('Mengirim video sebagai document...');
+            logger.info('Mengirim video...');
+            await helpers.simulateTyping(msg, msg.client, 1500);
             await msg.reply(videoMedia, null, {
                 sendMediaAsDocument: true
             });
 
+            // React:  Success
+            await helpers.reactSuccess(msg);
             logger.success('Video berhasil dikirim!');
 
         } catch (error) {
             logger.error('Error downloading video:', error.message);
             logger.error('Stack trace:', error.stack);
 
+            await helpers.reactError(msg);
+
             if (error.message.includes('Video unavailable') || error.message.includes('not available')) {
-                await msg.reply('❌ Video tidak tersedia atau sudah dihapus!');
+                await helpers.replyWithTyping(msg, msg.client, '❌ Video tidak tersedia atau sudah dihapus!');
             } else if (error.message.includes('Private video')) {
-                await msg.reply('❌ Video ini bersifat private!');
+                await helpers.replyWithTyping(msg, msg.client, '❌ Video ini bersifat private!');
             } else {
-                await msg.reply('❌ Gagal mendownload video dari YouTube!\n\nPastikan link valid dan video tersedia.');
+                await helpers.replyWithTyping(msg, msg.client, '❌ Gagal mendownload video dari YouTube!\n\n💡 Pastikan link valid dan video tersedia.');
             }
         } finally {
             // Cleanup temp files

@@ -1,6 +1,7 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const logger = require('./utils/logger');
+const helpers = require('./utils/helpers');
 const stickerCommand = require('./commands/sticker');
 const youtubeCommand = require('./commands/youtube');
 const facebookCommand = require('./commands/facebook');
@@ -30,48 +31,40 @@ class WABot {
         });
 
         this.prefix = '.';
-        this.startupTime = null; // Waktu bot mulai online
+        this.startupTime = null;
         this.setupEventHandlers();
     }
 
     setupEventHandlers() {
-        // Event:  QR Code
         this.client.on('qr', (qr) => {
-            logger.info('Scan QR Code di bawah ini: ');
+            logger.info('Scan QR Code di bawah ini:  ');
             qrcode.generate(qr, { small: true });
         });
 
-        // Event:  Loading
         this.client.on('loading_screen', (percent, message) => {
-            logger.info(`Loading: ${percent}% - ${message}`);
+            logger.info(`Loading:  ${percent}% - ${message}`);
         });
 
-        // Event: Authenticated
         this.client.on('authenticated', () => {
-            logger.success('Autentikasi berhasil! ');
+            logger.success('Autentikasi berhasil!  ');
         });
 
-        // Event: Auth Failure
         this.client.on('auth_failure', (msg) => {
             logger.error('Autentikasi gagal:', msg);
         });
 
-        // Event: Ready
         this.client.on('ready', () => {
-            this.startupTime = Math.floor(Date.now() / 1000); // Unix timestamp
+            this.startupTime = Math.floor(Date.now() / 1000);
             logger.success('✅ Bot WhatsApp siap digunakan!');
             logger.info(`Prefix command: ${this.prefix}`);
             logger.info('Bot akan mengabaikan pesan yang diterima saat offline');
         });
 
-        // Event: Message - HANYA SATU EVENT INI SAJA
         this.client.on('message_create', async (msg) => {
-            // Skip pesan dari diri sendiri
             if (msg.fromMe) return;
             await this.handleMessage(msg);
         });
 
-        // Event:  Disconnected
         this.client.on('disconnected', (reason) => {
             logger.warn('Bot terputus:', reason);
         });
@@ -79,10 +72,8 @@ class WABot {
 
     async handleMessage(msg) {
         try {
-            // Abaikan pesan dari status/broadcast
             if (msg.from === 'status@broadcast') return;
 
-            // Abaikan pesan yang diterima saat bot offline
             const messageTimestamp = msg.timestamp;
             if (this.startupTime && messageTimestamp < this.startupTime) {
                 logger.warn(`Pesan diabaikan (diterima saat bot offline): ${msg.body}`);
@@ -90,24 +81,19 @@ class WABot {
             }
 
             const body = msg.body.trim();
-
-            // Log semua pesan untuk debugging
             logger.info(`Pesan diterima: "${body}" dari ${msg.from}`);
 
-            // Cek apakah pesan adalah command
-            if (!body.startsWith(this.prefix)) {
+            if (! body.startsWith(this.prefix)) {
                 logger.info('Bukan command, diabaikan');
                 return;
             }
 
-            // Parse command
             const commandBody = body.slice(this.prefix.length).trim();
             const args = commandBody.split(/ +/);
             const command = args[0].toLowerCase();
 
             logger.info(`Command terdeteksi: "${command}"`);
 
-            // Routing command
             switch (command) {
                 case 's':
                     logger.info('Menjalankan command .s');
@@ -125,7 +111,7 @@ class WABot {
                     logger.info('Menjalankan command .ytmp3');
                     await youtubeCommand.downloadAudio(msg, body);
                     break;
-                case 'yt':
+                case 'yt': 
                     logger.info('Menjalankan command .yt');
                     await youtubeCommand.downloadVideo(msg, body);
                     break;
@@ -158,7 +144,8 @@ class WABot {
         } catch (error) {
             logger.error('Error handling message:', error);
             try {
-                await msg.reply('❌ Terjadi kesalahan saat memproses pesan! ');
+                await helpers.reactError(msg);
+                await helpers.replyWithTyping(msg, this.client, '❌ Terjadi kesalahan saat memproses pesan!');
             } catch (replyError) {
                 logger.error('Error sending error reply:', replyError);
             }
@@ -166,45 +153,35 @@ class WABot {
     }
 
     async sendHelp(msg) {
-        const helpText = `*📌 MENU BOT STICKER*
+        // React: Command received
+        await helpers.reactCommandReceived(msg);
 
-*Cara Pakai:*
+        const helpText = `*🤖 V-ULTIMATE BOT - MENU*
 
-1️⃣ *Sticker Biasa*
-   • Kirim gambar dengan caption:  .s
-   • Atau reply gambar dengan:  .s
+*📌 STICKER TOOLS*
+├ \`.s\` - Gambar → Sticker
+├ \`.stext [teks]\` - Gambar → Sticker + Teks
+└ \`.toimg\` - Sticker → Gambar
 
-2️⃣ *Sticker dengan Teks*
-   • Kirim gambar dengan caption: .stext teks kamu
-   • Atau reply gambar dengan: .stext teks kamu
+*📥 DOWNLOADER*
+├ \`.ytmp3 [link]\` - YouTube → MP3 (16MB max)
+├ \`.yt [link]\` - YouTube → MP4 (64MB max)
+├ \`.fb [link]\` - Facebook Video
+├ \`.tt [link]\` - TikTok Video
+└ \`.ig [link]\` - Instagram Media
 
-3️⃣ *Sticker ke Gambar*
-   • Reply sticker dengan: .toimg
+*🤖 AI FEATURES*
+└ \`.quote\` - Motivasi AI (Groq Llama 3.3)
 
-4️⃣ *YouTube Downloader*
-   • Audio MP3: .ytmp3 [link youtube]
-   • Video MP4: .yt [link youtube]
+*💡 TIPS: *
+• Bisa reply pesan yang ada link, gak perlu ketik ulang! 
+• Bot typing 2 detik sebelum reply
+• Reactions:  🫡 = received, ✅ = success, ❌ = error
 
-5️⃣ *Facebook Downloader*
-   • Video: .fb [link facebook]
+_Bot by vazul76 | v1.2.0_`;
 
-6️⃣ *TikTok Downloader*
-   • Video: .tiktok [link] atau .tt [link]
-
-7️⃣ *Instagram Downloader*
-   • Video/Photo: .ig [link instagram]
-
-8️⃣ *Motivation*
-   • Reply pesan dengan: .quote
-   • Kirim motivasi: .quote
-
-⚠️ *Limit ukuran:*
-   • Audio: max 16MB
-   • Video: max 64MB
-
-_Bot by vazul76_`;
-
-        await msg.reply(helpText);
+        await helpers.replyWithTyping(msg, this.client, helpText, 2000);
+        await helpers.reactSuccess(msg);
         logger.success('Help message sent');
     }
 
