@@ -1,0 +1,21 @@
+# Dependency
+node_modules/
+
+# WhatsApp Session (PENTING! Jangan di-upload ke GitHub)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Temporary files (Hasil download video/audio)
+temp/*
+!temp/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables (API Keys, etc)
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db
