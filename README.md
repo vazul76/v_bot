@@ -17,6 +17,7 @@
 
 ### 🤖 AI Features
 - **Smart Motivation (Groq AI)**: Kirim motivasi cerdas yang dibuat oleh AI. Mendukung konteks balasan (reply) pesan untuk memberikan semangat yang relevan.
+- **AI Image Generator**: Generate gambar dari teks menggunakan Pollinations AI.
 
 ### 📥 Social Media Downloader
 - **YouTube Downloader**: Download video (MP4) atau audio (MP3) dengan kualitas terbaik.
@@ -34,10 +35,34 @@
 ### Prasyarat
 - **Node.js** (LTS version rekomendasikan)
 
+### Instalasi di Ubuntu VM
+Jika Anda deploy di Ubuntu VM, install dependencies berikut terlebih dahulu:
+
+```bash
+# Install build tools dan library untuk canvas & sharp
+sudo apt install -y \
+  build-essential \
+  pkg-config \
+  libcairo2-dev \
+  libpango1.0-dev \
+  libjpeg-dev \
+  libgif-dev \
+  librsvg2-dev
+
+# Install library untuk vips (sharp)
+sudo apt install -y \
+  libvips-dev \
+  libglib2.0-dev \
+  libexpat1-dev
+
+# Install Python (diperlukan untuk build native modules)
+sudo apt install -y python-is-python3
+```
+
 ### Langkah-langkah
 1. **Clone Repositori**
    ```bash
-   git clone https://github.com/vazul76/wa-sticker-bot.git
+   git clone https://github.com/vazul76/v_bot.git
    cd wa-sticker-bot
    ```
 
@@ -45,6 +70,9 @@
    ```bash
    npm install
    ```
+
+   > [!WARNING]
+   > **Troubleshooting untuk Ubuntu VM**: Jika `npm install` gagal dengan error pada modul `sharp`, ubah versi sharp di `package.json` dari `"sharp": "^0.34.5"` menjadi `"sharp": "^0.32.6"` lalu jalankan `npm install` lagi.
 
 3. **Konfigurasi API Key**
    Copy file `.env.example` menjadi `.env` dan isi dengan API Key Groq kamu:
@@ -81,6 +109,7 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 | `.tt [Link]` | Download Video TikTok | Max 64MB |
 | `.ig [Link]` | Download Media Instagram | Max 64MB |
 | `.quote` | Motivasi AI (Llama 3.3) | - |
+| `.image [Prompt]` | Generate Image AI | - |
 
 > [!TIP]
 > **Fitur Balasan (Reply):** Kamu bisa membalas (reply) pesan yang berisi link dengan perintah `.yt`, `.ig`, dll. tanpa perlu mengetik ulang linknya!

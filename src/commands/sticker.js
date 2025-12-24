@@ -12,7 +12,9 @@ class StickerCommand {
     }
 
     /**
-     * Membuat sticker biasa tanpa teks
+     * Membuat sticker dari gambar atau video
+     * Gambar → Static sticker
+     * Video → Animated sticker
      */
     async createSticker(msg, client) {
         try {
@@ -26,20 +28,29 @@ class StickerCommand {
             if (!media) {
                 logger.warn('Tidak ada media ditemukan');
                 await helpers.reactError(msg);
-                return helpers.replyWithTyping(msg, client, '❌ Kirim gambar atau reply gambar dengan command .s');
+                return helpers.replyWithTyping(msg, client, '❌ Kirim gambar/video atau reply gambar/video dengan command .s\n\n📝 Support:\n• Gambar → Static sticker\n• Video → Animated sticker');
             }
 
             logger.info(`Media ditemukan: ${media.mimetype}`);
 
-            if (! this.isImage(media.mimetype)) {
-                logger.warn('Media bukan gambar');
+            // Check if image or video
+            const isImage = this.isImage(media.mimetype);
+            const isVideo = this.isVideo(media.mimetype);
+
+            if (! isImage && !isVideo) {
+                logger.warn('Media bukan gambar atau video');
                 await helpers.reactError(msg);
-                return helpers.replyWithTyping(msg, client, '❌ Hanya mendukung format gambar (jpg, png, jpeg, webp)!');
+                return helpers.replyWithTyping(msg, client, '❌ Hanya mendukung gambar (jpg, png, webp) atau video (mp4, gif)! ');
             }
 
             // React: Processing
             await helpers.reactProcessing(msg);
-            await helpers.replyWithTyping(msg, client, '⏳ Membuat sticker...', 1000);
+
+            if (isVideo) {
+                await helpers.replyWithTyping(msg, client, '⏳ Membuat animated sticker dari video...\n🤬Lagi proses, SABAR!', 1000);
+            } else {
+                await helpers.replyWithTyping(msg, client, '⏳ Membuat sticker...', 1000);
+            }
 
             // Convert media data ke buffer
             const buffer = Buffer.from(media.data, 'base64');
@@ -49,16 +60,18 @@ class StickerCommand {
                 pack: this.packName,
                 author: this.authorName,
                 type: StickerTypes.FULL,
-                quality: 50
+                quality: 50,
+                animated: isVideo // Enable animated for video
             });
 
-            logger.info('Convert ke buffer WebP...');
-            const webpBuffer = await sticker.toBuffer();
+            logger.info('Convert ke buffer WebP/WebM...');
+            const stickerBuffer = await sticker.toBuffer();
 
             logger.info('Membuat MessageMedia...');
+            const mimetype = isVideo ? 'image/webp' : 'image/webp'; // WhatsApp uses webp for both
             const stickerMedia = new MessageMedia(
-                'image/webp',
-                webpBuffer.toString('base64'),
+                mimetype,
+                stickerBuffer.toString('base64'),
                 'sticker.webp'
             );
 
@@ -73,20 +86,20 @@ class StickerCommand {
 
             // React: Success
             await helpers.reactSuccess(msg);
-            logger.success('Sticker berhasil dikirim! ');
+            logger.success(`${isVideo ? 'Animated sticker' : 'Sticker'} berhasil dikirim!`);
 
         } catch (error) {
             logger.error('Error creating sticker:', error.message);
             logger.error('Stack trace:', error.stack);
-            
+
             // React: Error
             await helpers.reactError(msg);
-            await helpers.replyWithTyping(msg, client, '❌ Gagal membuat sticker! Pastikan file adalah gambar yang valid.');
+            await helpers.replyWithTyping(msg, client, '❌ Gagal membuat sticker!\n\n💡 Tips:\n• Pastikan file valid\n• Video max 10 detik\n• Ukuran file jangan terlalu besar');
         }
     }
 
     /**
-     * Membuat sticker dengan teks di bawah
+     * Membuat sticker dengan teks di bawah (hanya untuk gambar)
      */
     async createStickerWithText(msg, client, fullCommand) {
         try {
@@ -102,26 +115,27 @@ class StickerCommand {
 
             if (!text) {
                 await helpers.reactError(msg);
-                return helpers.replyWithTyping(msg, client, '❌ Format:  .stext teks yang ingin ditambahkan\n\nContoh: .stext Hello Maxi');
+                return helpers.replyWithTyping(msg, client, '❌ Format:  .stext teks yang ingin ditambahkan\n\nContoh: .stext Hello World');
             }
 
             const media = await this.getMediaFromMessage(msg);
 
-            if (! media) {
+            if (!media) {
                 logger.warn('Tidak ada media ditemukan');
                 await helpers.reactError(msg);
-                return helpers.replyWithTyping(msg, client, '❌ Kirim gambar atau reply gambar dengan command .stext');
+                return helpers.replyWithTyping(msg, client, '❌ Kirim gambar atau reply gambar dengan command .stext\n\n⚠️ Text overlay hanya support untuk gambar, bukan video!');
             }
 
             logger.info(`Media ditemukan: ${media.mimetype}`);
 
-            if (!this.isImage(media.mimetype)) {
+            // Hanya support gambar untuk text overlay
+            if (! this.isImage(media.mimetype)) {
                 logger.warn('Media bukan gambar');
                 await helpers.reactError(msg);
-                return helpers.replyWithTyping(msg, client, '❌ Hanya mendukung format gambar (jpg, png, jpeg, webp)!');
+                return helpers.replyWithTyping(msg, client, '❌ .stext hanya mendukung gambar!\n\n💡 Untuk video, gunakan .s tanpa text');
             }
 
-            // React: Processing
+            // React:  Processing
             await helpers.reactProcessing(msg);
             await helpers.replyWithTyping(msg, client, '⏳ Membuat sticker dengan teks...', 1000);
 
@@ -151,20 +165,20 @@ class StickerCommand {
             logger.info('Mengirim sebagai sticker...');
             await helpers.simulateTyping(msg, client, 1500);
             await msg.reply(stickerMedia, null, {
-                sendMediaAsSticker: true,
+                sendMediaAsSticker:  true,
                 stickerAuthor: this.authorName,
                 stickerName: this.packName,
                 stickerCategories: ['🤖']
             });
 
-            // React: Success
+            // React:  Success
             await helpers.reactSuccess(msg);
-            logger.success('Sticker dengan teks berhasil dikirim!');
+            logger.success('Sticker dengan teks berhasil dikirim! ');
 
         } catch (error) {
             logger.error('Error creating sticker with text:', error.message);
             logger.error('Stack trace:', error.stack);
-            
+
             // React: Error
             await helpers.reactError(msg);
             await helpers.replyWithTyping(msg, client, '❌ Gagal membuat sticker dengan teks! ');
@@ -172,7 +186,7 @@ class StickerCommand {
     }
 
     /**
-     * Mengubah sticker menjadi gambar
+     * Mengubah sticker menjadi gambar/video
      */
     async convertStickerToImage(msg, client) {
         try {
@@ -185,7 +199,7 @@ class StickerCommand {
             if (! msg.hasQuotedMsg) {
                 logger.warn('Tidak ada quoted message');
                 await helpers.reactError(msg);
-                return helpers.replyWithTyping(msg, client, '❌ Reply sticker dengan command .toimg untuk mengubah sticker menjadi gambar! ');
+                return helpers.replyWithTyping(msg, client, '❌ Reply sticker dengan command .toimg untuk mengubah sticker menjadi gambar/video! ');
             }
 
             logger.info('Mengambil quoted message...');
@@ -199,10 +213,10 @@ class StickerCommand {
             }
 
             logger.info('Sticker ditemukan, downloading...');
-            
+
             // React: Processing
             await helpers.reactProcessing(msg);
-            await helpers.replyWithTyping(msg, client, '⏳ Mengubah sticker menjadi gambar...', 1000);
+            await helpers.replyWithTyping(msg, client, '⏳ Mengubah sticker menjadi gambar/video...', 1000);
 
             // Download sticker
             const media = await quotedMsg.downloadMedia();
@@ -215,40 +229,62 @@ class StickerCommand {
 
             logger.info(`Sticker downloaded: ${media.mimetype}`);
 
-            // Convert WebP ke PNG menggunakan sharp
+            // Convert WebP ke PNG/GIF
             const buffer = Buffer.from(media.data, 'base64');
 
-            logger.info('Converting WebP to PNG and trimming whitespace...');
-            const pngBuffer = await sharp(buffer)
-                .trim({
-                    background: { r: 255, g: 255, b:  255, alpha: 0 },
-                    threshold: 10
-                })
-                .png()
-                .toBuffer();
+            // Check if animated sticker (webm/animated webp)
+            const isAnimated = await this.isAnimatedSticker(buffer);
 
-            // Buat MessageMedia
-            const imageMedia = new MessageMedia(
-                'image/png',
-                pngBuffer.toString('base64'),
-                'sticker-to-image.png'
-            );
+            if (isAnimated) {
+                // Animated sticker → return as GIF or MP4
+                logger.info('Converting animated sticker to GIF...');
+                
+                // Untuk animated, kita return as-is (webp animated) atau convert ke gif
+                // Tapi whatsapp-web.js lebih mudah kirim as document
+                const imageMedia = new MessageMedia(
+                    'image/webp',
+                    buffer.toString('base64'),
+                    'sticker-animated.webp'
+                );
 
-            logger.info('Mengirim sebagai gambar...');
-            await helpers.simulateTyping(msg, client, 1500);
-            await msg.reply(imageMedia);
+                await helpers.simulateTyping(msg, client, 1500);
+                await msg.reply(imageMedia, null, {
+                    sendMediaAsDocument: true
+                });
 
-            // React: Success
+            } else {
+                // Static sticker → convert to PNG
+                logger.info('Converting static sticker to PNG and trimming...');
+                const pngBuffer = await sharp(buffer)
+                    .trim({
+                        background: { r: 255, g: 255, b:  255, alpha: 0 },
+                        threshold: 10
+                    })
+                    .png()
+                    .toBuffer();
+
+                const imageMedia = new MessageMedia(
+                    'image/png',
+                    pngBuffer.toString('base64'),
+                    'sticker-to-image.png'
+                );
+
+                logger.info('Mengirim sebagai gambar...');
+                await helpers.simulateTyping(msg, client, 1500);
+                await msg.reply(imageMedia);
+            }
+
+            // React:  Success
             await helpers.reactSuccess(msg);
-            logger.success('Sticker berhasil diubah menjadi gambar! ');
+            logger.success('Sticker berhasil diubah! ');
 
         } catch (error) {
             logger.error('Error converting sticker to image:', error.message);
             logger.error('Stack trace:', error.stack);
-            
+
             // React: Error
             await helpers.reactError(msg);
-            await helpers.replyWithTyping(msg, client, '❌ Gagal mengubah sticker menjadi gambar!');
+            await helpers.replyWithTyping(msg, client, '❌ Gagal mengubah sticker! ');
         }
     }
 
@@ -291,21 +327,42 @@ class StickerCommand {
     }
 
     /**
+     * Cek apakah file adalah video
+     */
+    isVideo(mimetype) {
+        const validTypes = ['video/mp4', 'video/webm', 'image/gif', 'video/gif'];
+        return mimetype && validTypes.includes(mimetype.toLowerCase());
+    }
+
+    /**
+     * Cek apakah sticker adalah animated
+     */
+    async isAnimatedSticker(buffer) {
+        try {
+            // Check file signature/header
+            const header = buffer.toString('hex', 0, 20);
+            // WebP animated has VP8X chunk with animation flag
+            // This is a simple check, might need refinement
+            return header.includes('414e494d'); // "ANIM" in hex
+        } catch (error) {
+            logger.warn('Error checking if sticker is animated:', error.message);
+            return false;
+        }
+    }
+
+    /**
      * Menambahkan teks OVERLAY di atas gambar (bawah center)
      */
     async addTextToImage(imageData, text) {
         const buffer = Buffer.from(imageData, 'base64');
         const image = await Canvas.loadImage(buffer);
 
-        // Buat canvas dengan ukuran sticker WhatsApp
         const canvasSize = 512;
         const canvas = Canvas.createCanvas(canvasSize, canvasSize);
         const ctx = canvas.getContext('2d');
 
-        // Background transparan
         ctx.clearRect(0, 0, canvasSize, canvasSize);
 
-        // Hitung scaling untuk fit gambar ke canvas
         const scale = Math.min(
             canvasSize / image.width,
             canvasSize / image.height
@@ -314,14 +371,11 @@ class StickerCommand {
         const scaledWidth = image.width * scale;
         const scaledHeight = image.height * scale;
 
-        // Posisi gambar di tengah canvas
         const imageX = (canvasSize - scaledWidth) / 2;
         const imageY = (canvasSize - scaledHeight) / 2;
 
-        // Gambar image
         ctx.drawImage(image, imageX, imageY, scaledWidth, scaledHeight);
 
-        // === OVERLAY TEXT ===
         const fontSize = this.calculateFontSize(text);
         ctx.font = `bold ${fontSize}px Impact, Arial Black, sans-serif`;
         ctx.textAlign = 'center';
@@ -334,7 +388,6 @@ class StickerCommand {
         const textWidth = metrics.width;
         const textHeight = fontSize;
 
-        // Background semi-transparan
         const padding = 15;
         ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
         ctx.fillRect(
@@ -344,14 +397,12 @@ class StickerCommand {
             textHeight + padding * 2
         );
 
-        // Stroke hitam tebal (outline)
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = Math.max(fontSize / 6, 4);
         ctx.lineJoin = 'round';
         ctx.miterLimit = 2;
         ctx.strokeText(text, textX, textY);
 
-        // Fill putih
         ctx.fillStyle = '#FFFFFF';
         ctx.fillText(text, textX, textY);
 
