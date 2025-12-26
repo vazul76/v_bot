@@ -223,7 +223,7 @@ Proyek ini dilisensikan di bawah **MIT License**. Lihat file [LICENSE](LICENSE) 
 
 ## 📝 Changelog
 
-### v2.0.0 (December 2024)
+### v2.0.0 (December 2025)
 - ✅ Migrasi dari `whatsapp-web.js` ke `@whiskeysockets/baileys`
 - ✅ Performa lebih ringan (no Chromium dependency)
 - ✅ Improved session management dengan multi-file auth state
