@@ -1,0 +1,13 @@
+{
+  "watch": ["src", "index.js"],
+  "ext": "js,json",
+  "ignore": [
+    "node_modules/**",
+    "auth_baileys/**",
+    "temp/**",
+    ".git/**",
+    "Dockerfile",
+    "docker-compose.dev.yml"
+  ],
+  "delay": "250ms"
+}

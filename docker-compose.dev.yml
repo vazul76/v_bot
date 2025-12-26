@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        BUILD_ENV: development
+    volumes:
+      - ./:/usr/src/app:cached
+      - node_modules:/usr/src/app/node_modules
+      - ./auth_baileys:/usr/src/app/auth_baileys
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+
+volumes:
+  node_modules:
