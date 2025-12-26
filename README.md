@@ -1,10 +1,13 @@
 # 🤖 V-Ultimate-Bot
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/vazul76/wa-sticker-bot)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/vazul76/v_bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D%2016.x-green.svg)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D%2018.x-green.svg)](https://nodejs.org/)
+[![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-brightgreen.svg)](https://github.com/WhiskeySockets/Baileys)
 
-**V-Ultimate-Bot** adalah WhatsApp Bot Utility & AI yang dibangun dengan **whatsapp-web.js**. Bot ini menggabungkan berbagai fitur canggih mulai dari Sticker Tools, Social Media Downloader (YT, FB, TikTok, IG), hingga Motivasi Cerdas berbasis AI (Groq).
+**V-Ultimate-Bot** adalah WhatsApp Bot Utility & AI yang dibangun dengan **@whiskeysockets/baileys**. Bot ini menggabungkan berbagai fitur canggih mulai dari Sticker Tools, Social Media Downloader (YT, FB, TikTok, IG), hingga Motivasi Cerdas berbasis AI (Groq).
+
+> **🔄 Update v2.0.0**: Bot telah bermigrasi dari `whatsapp-web.js` ke `@whiskeysockets/baileys` untuk performa yang lebih baik dan konsumsi resource yang lebih ringan (tidak memerlukan Chromium/browser).
 
 ---
 
@@ -27,19 +30,35 @@
 
 ### ️ Smart System
 - **Offline Filtering**: Bot cerdas yang mengabaikan pesan saat sedang offline untuk mencegah spam penumpukan perintah saat baru startup.
+- **Auto Reconnect**: Otomatis reconnect jika koneksi terputus.
+- **Multi-File Auth State**: Session management yang lebih aman dengan Baileys.
+
+---
+
+## 🛠️ Technology Stack
+
+- **[@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys)** - WhatsApp Web API
+- **[Groq SDK](https://groq.com/)** - AI API untuk motivational quotes (Llama 3.3)
+- **[Pollinations AI](https://pollinations.ai/)** - AI Image Generator
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - YouTube & Social Media Downloader
+- **[wa-sticker-formatter](https://github.com/AlenSaito1/wa-sticker-formatter)** - Sticker Creator
+- **[canvas](https://github.com/Automattic/node-canvas)** - Image Processing
+- **[sharp](https://github.com/lovell/sharp)** - High Performance Image Processing
 
 ---
 
 ## 🚀 Instalasi Cepat
 
 ### Prasyarat
-- **Node.js** (LTS version rekomendasikan)
+- **Node.js** >= 18.x (LTS version direkomendasikan)
+- **npm** >= 8.0.0
 
-### Instalasi di Ubuntu VM
-Jika Anda deploy di Ubuntu VM, install dependencies berikut terlebih dahulu:
+### Instalasi di Ubuntu/Linux VM
+Jika Anda deploy di Ubuntu/Linux VM, install dependencies berikut terlebih dahulu:
 
 ```bash
 # Install build tools dan library untuk canvas & sharp
+sudo apt update
 sudo apt install -y \
   build-essential \
   pkg-config \
@@ -63,7 +82,7 @@ sudo apt install -y python-is-python3
 1. **Clone Repositori**
    ```bash
    git clone https://github.com/vazul76/v_bot.git
-   cd wa-sticker-bot
+   cd v_bot
    ```
 
 2. **Instal Dependensi**
@@ -72,7 +91,7 @@ sudo apt install -y python-is-python3
    ```
 
    > [!WARNING]
-   > **Troubleshooting untuk Ubuntu VM**: Jika `npm install` gagal dengan error pada modul `sharp`, ubah versi sharp di `package.json` dari `"sharp": "^0.34.5"` menjadi `"sharp": "^0.32.6"` lalu jalankan `npm install` lagi.
+   > **Troubleshooting untuk Ubuntu VM**: Jika `npm install` gagal dengan error pada modul `sharp` atau `canvas`, pastikan semua dependencies sistem sudah terinstall. Untuk sharp, versi yang digunakan adalah `^0.32.6` yang lebih kompatibel dengan berbagai sistem.
 
 3. **Konfigurasi API Key**
    Copy file `.env.example` menjadi `.env` dan isi dengan API Key Groq kamu:
@@ -88,9 +107,17 @@ sudo apt install -y python-is-python3
    ```bash
    npm start
    ```
+   
+   Atau untuk development mode dengan auto-reload:
+   ```bash
+   npm run dev
+   ```
 
-4. **Scan QR Code**
-   Buka WhatsApp di ponsel Anda, pilih "Perangkat Tertaut", dan scan QR code yang muncul di terminal.
+5. **Scan QR Code**
+   Buka WhatsApp di ponsel Anda, pilih "Perangkat Tertaut" (Linked Devices), dan scan QR code yang muncul di terminal.
+   
+   > [!NOTE]
+   > Setelah scan QR pertama kali, kredensial akan disimpan di folder `auth_baileys/`. Bot akan otomatis login di startup berikutnya tanpa perlu scan QR lagi.
 
 ---
 
@@ -120,13 +147,58 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 
 ```text
 ├── src/
-│   ├── commands/       # Modul fungsionalitas utama
-│   ├── utils/          # Helper & Logger
-│   └── bot.js          # Logic utama WhatsApp Client
-├── temp/               # Penyimpanan sementara file download
-├── index.js            # Entry point aplikasi
-└── package.json        # Dependensi & Scripts
+│   ├── commands/           # Modul fungsionalitas utama
+│   │   ├── sticker.js     # Sticker tools (s, stext, toimg)
+│   │   ├── youtube.js     # YouTube downloader (yt, ytmp3)
+│   │   ├── facebook.js    # Facebook downloader
+│   │   ├── tiktok.js      # TikTok downloader
+│   │   ├── instagram.js   # Instagram downloader
+│   │   ├── quote.js       # AI Quote generator
+│   │   └── image.js       # AI Image generator
+│   ├── utils/             # Helper & Logger utilities
+│   └── bot.js             # Logic utama WhatsApp Bot (Baileys)
+├── auth_baileys/          # Session & authentication files (auto-generated)
+├── temp/                  # Penyimpanan sementara file download
+├── index.js               # Entry point aplikasi
+├── package.json           # Dependencies & Scripts
+└── .env                   # Environment variables (API Keys)
 ```
+
+---
+
+## ⚙️ Environment Variables
+
+Buat file `.env` di root project dengan konfigurasi berikut:
+
+```env
+# Groq API Key (Required untuk .quote command)
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+Dapatkan Groq API Key gratis di: [https://console.groq.com/keys](https://console.groq.com/keys)
+
+---
+
+## 🔧 Troubleshooting
+
+### Bot tidak mau login / QR tidak muncul
+- Pastikan Node.js versi >= 18.x
+- Hapus folder `auth_baileys/` dan restart bot untuk generate QR baru
+
+### Error saat npm install
+- Pastikan semua system dependencies sudah terinstall (lihat bagian Instalasi)
+- Untuk error pada `sharp`: pastikan `libvips-dev` sudah terinstall
+- Untuk error pada `canvas`: pastikan `libcairo2-dev` dan dependencies terkait sudah terinstall
+
+### Bot disconnect terus
+- Pastikan koneksi internet stabil
+- Jangan scan QR di multiple devices secara bersamaan
+- Jika sudah pernah login, jangan scan QR lagi (hapus `auth_baileys/` jika ingin login ulang)
+
+### Download gagal / file corrupt
+- Pastikan link yang digunakan valid dan public
+- Beberapa video mungkin melebihi batas ukuran file (lihat tabel batasan)
+- Pastikan `yt-dlp` terinstall dengan benar
 
 ---
 
@@ -136,10 +208,32 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 
 ---
 
+
+## ⭐ Show your support
+
+Give a ⭐️ if this project helped you!
+
+---
+
 ## 📜 Lisensi
 
 Proyek ini dilisensikan di bawah **MIT License**. Lihat file [LICENSE](LICENSE) untuk detail lebih lanjut.
 
 ---
 
-*Made with ❤️ by vazul.*
+## 📝 Changelog
+
+### v2.0.0 (December 2024)
+- ✅ Migrasi dari `whatsapp-web.js` ke `@whiskeysockets/baileys`
+- ✅ Performa lebih ringan (no Chromium dependency)
+- ✅ Improved session management dengan multi-file auth state
+- ✅ Auto-reconnect functionality
+- ✅ Better error handling dan logging
+
+### v1.1.0
+- Initial release dengan whatsapp-web.js
+- Basic sticker tools, social media downloader, dan AI features
+
+---
+
+*Made with ❤️ by vazul76*

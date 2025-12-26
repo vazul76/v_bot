@@ -10,27 +10,22 @@ class QuoteCommand {
         });
     }
 
-    async sendQuote(msg) {
+    async sendQuote(msg, sock) {
         try {
             logger.info('Memproses command .quote');
 
-            // React: Command received
-            await helpers.reactCommandReceived(msg);
+            await helpers.reactCommandReceived(sock, msg);
 
-            // Check if replying to a message
+            // Check quoted message for context
             let context = '';
-            if (msg.hasQuotedMsg) {
-                try {
-                    const quotedMsg = await msg.getQuotedMessage();
-                    context = quotedMsg.body || '';
-                    logger.info(`Quote with context: ${context}`);
-                } catch (error) {
-                    logger.warn('Error getting quoted message:', error.message);
-                }
+            const quoted = await helpers.getQuotedMessage(msg);
+            
+            if (quoted) {
+                context = this.getTextFromMessage(quoted.message);
+                logger.info(`Quote with context: ${context}`);
             }
 
-            // React: Processing
-            await helpers.reactProcessing(msg);
+            await helpers.reactProcessing(sock, msg);
 
             logger.info('Generating quote with Groq AI...');
 
@@ -47,38 +42,41 @@ class QuoteCommand {
                         content: prompt
                     }
                 ],
-                model:  'llama-3.3-70b-versatile',
+                model: 'llama-3.3-70b-versatile',
                 temperature: 0.8,
                 max_tokens: 200
             });
 
             const quote = chatCompletion.choices[0]?.message?.content || 'Terus berjuang dan jangan menyerah!  💪';
 
-            logger.info('Quote generated successfully');
+            logger.info('Quote generated');
 
-            const formattedQuote = `${quote}\n\n_Terus semangat ya!_`;
+            const formattedQuote = `_${quote}_\n\n_Semangat terus ya!_`;
 
-            await helpers.simulateTyping(msg, msg.client, 2000);
-            await msg.reply(formattedQuote);
+            await helpers.simulateTyping(sock, msg, 2000);
+            await helpers.replyWithTyping(sock, msg, formattedQuote, 2000);
 
-            // React: Success
-            await helpers.reactSuccess(msg);
-            logger.success('Quote sent successfully');
+            await helpers.reactSuccess(sock, msg);
+            logger.success('Quote sent');
 
         } catch (error) {
             logger.error('Error generating quote:', error.message);
-            logger.error('Stack trace:', error.stack);
-
-            await helpers.reactError(msg);
+            await helpers.reactError(sock, msg);
 
             if (error.message.includes('API key')) {
-                await helpers.replyWithTyping(msg, msg.client, '❌ Groq API key tidak valid!\n\n💡 Pastikan GROQ_API_KEY sudah diset di file .env');
+                await helpers.replyWithTyping(sock, msg, '❌ Groq API key tidak valid!\n\n💡 Set GROQ_API_KEY di .env');
             } else if (error.message.includes('rate limit')) {
-                await helpers.replyWithTyping(msg, msg.client, '❌ Rate limit tercapai!\n\n⏳ Coba lagi beberapa saat.');
+                await helpers.replyWithTyping(sock, msg, '❌ Rate limit tercapai!\n\n⏳ Coba lagi nanti.');
             } else {
-                await helpers.replyWithTyping(msg, msg.client, '❌ Gagal membuat quote!\n\n💡 Coba lagi nanti.');
+                await helpers.replyWithTyping(sock, msg, '❌ Gagal membuat quote!');
             }
         }
+    }
+
+    getTextFromMessage(message) {
+        if (message?.conversation) return message.conversation;
+        if (message?.extendedTextMessage?.text) return message.extendedTextMessage.text;
+        return '';
     }
 }
 
