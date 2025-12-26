@@ -4,6 +4,7 @@ node_modules/
 # WhatsApp Session (PENTING! Jangan di-upload ke GitHub)
 .wwebjs_auth/
 .wwebjs_cache/
+auth_baileys/
 
 # Temporary files (Hasil download video/audio)
 temp/*
