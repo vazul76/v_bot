@@ -135,7 +135,7 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 | `.fb [Link]` | Download Video Facebook | Max 64MB |
 | `.tt [Link]` | Download Video TikTok | Max 64MB |
 | `.ig [Link]` | Download Media Instagram | Max 64MB |
-| `.quote` | Motivasi AI (Llama 3.3) | - |
+| `.quote [Teks]` | Motivasi AI (Llama 3.3) | - |
 | `.image [Prompt]` | Generate Image AI | - |
 
 > [!TIP]

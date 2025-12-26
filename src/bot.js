@@ -247,7 +247,7 @@ class WABot {
 └ \`.ig [link]\` - Instagram Media
 
 *🤖 AI FEATURES*
-├ \`.quote\` - Motivasi AI (Groq Llama 3.3)
+├ \`.quote [teks]\` - Motivasi AI (Groq Llama 3.3)
 └ \`.image [prompt]\` - Generate Image AI
 
 *💡 TIPS: *
