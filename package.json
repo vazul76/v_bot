@@ -19,6 +19,7 @@
     "canvas": "^2.11.2",
     "chalk": "^4.1.2",
     "dotenv": "^17.2.3",
+    "google-tts-api": "^2.0.2",
     "groq-sdk": "^0.37.0",
     "pino": "^8.16.0",
     "qrcode-terminal": "^0.12.0",

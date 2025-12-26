@@ -24,9 +24,16 @@
 
 ### 📥 Social Media Downloader
 - **YouTube Downloader**: Download video (MP4) atau audio (MP3) dengan kualitas terbaik.
+- **Twitter/X Downloader**: Download video dari Twitter/X (bisa dari quoted message).
 - **Instagram Downloader**: Simpan Foto, Video, Reels, dan Postingan IG secara instan.
 - **TikTok Downloader**: Download video TikTok tanpa watermark.
 - **Facebook Downloader**: Download video dari Facebook dengan mudah.
+
+### 🗣️ Utility & Fun
+- **Text-to-Speech (TTS)**: Ubah teks jadi suara Google (Indo, Arab, Jepang support).
+- **Translate AI**: Terjemahkan teks ke berbagai bahasa (Indo, Inggris, Jepang) dengan AI yang natural.
+- **WhatsApp Poll**: Buat voting/polling langsung di grup WhatsApp.
+- **Al-Quran**: Baca ayat Al-Quran lengkap dengan terjemahan (support range ayat).
 
 ### ️ Smart System
 - **Offline Filtering**: Bot cerdas yang mengabaikan pesan saat sedang offline untuk mencegah spam penumpukan perintah saat baru startup.
@@ -137,9 +144,14 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 | `.ig [Link]` | Download Media Instagram | Max 64MB |
 | `.quote [Teks]` | Motivasi AI (Llama 3.3) | - |
 | `.image [Prompt]` | Generate Image AI | - |
+| `.twitter` / `.x` | Download Video Twitter | - |
+| `.poll` | Buat Polling WhatsApp | - |
+| `.say [Teks]` | Google TTS (Auto-Detect Ar/Jp) | Max 200 char |
+| `.tr [Lang] [Teks]` | Translate AI (id, en, jp) | - |
+| `.quran [Surat] [Ayat]` | Baca Al-Quran (Arab/Lat/Indo) | - |
 
 > [!TIP]
-> **Fitur Balasan (Reply):** Kamu bisa membalas (reply) pesan yang berisi link dengan perintah `.yt`, `.ig`, dll. tanpa perlu mengetik ulang linknya!
+> **Fitur Balasan (Reply):** Kamu bisa membalas (reply) pesan yang berisi link atau teks dengan perintah `.yt`, `.tr`, `.say` dll. tanpa perlu mengetik ulang!
 
 ---
 
@@ -150,11 +162,16 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 │   ├── commands/           # Modul fungsionalitas utama
 │   │   ├── sticker.js     # Sticker tools (s, stext, toimg)
 │   │   ├── youtube.js     # YouTube downloader (yt, ytmp3)
+│   │   ├── twitter.js     # Twitter downloader
 │   │   ├── facebook.js    # Facebook downloader
 │   │   ├── tiktok.js      # TikTok downloader
 │   │   ├── instagram.js   # Instagram downloader
 │   │   ├── quote.js       # AI Quote generator
-│   │   └── image.js       # AI Image generator
+│   │   ├── image.js       # AI Image generator
+│   │   ├── poll.js        # WhatsApp Poll feature
+│   │   ├── tts.js         # Text-to-Speech (Google TTS)
+│   │   ├── translate.js   # AI Translator
+│   │   └── quran.js       # Fitur Al-Quran
 │   ├── utils/             # Helper & Logger utilities
 │   └── bot.js             # Logic utama WhatsApp Bot (Baileys)
 ├── auth_baileys/          # Session & authentication files (auto-generated)

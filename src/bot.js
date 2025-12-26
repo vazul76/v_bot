@@ -12,6 +12,11 @@ const tiktokCommand = require('./commands/tiktok');
 const instagramCommand = require('./commands/instagram');
 const quoteCommand = require('./commands/quote');
 const imageCommand = require('./commands/image');
+const twitterCommand = require('./commands/twitter');
+const pollCommand = require('./commands/poll');
+const ttsCommand = require('./commands/tts');
+const translateCommand = require('./commands/translate');
+const quranCommand = require('./commands/quran');
 
 class WABot {
     constructor() {
@@ -60,7 +65,7 @@ class WABot {
             // QR Code
             if (qr) {
                 logger.info('Scan QR Code di bawah ini:');
-                qrcode.generate(qr, { small:  true });
+                qrcode.generate(qr, { small: true });
             }
 
             // Connected
@@ -73,7 +78,7 @@ class WABot {
             // Disconnected
             if (connection === 'close') {
                 const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-                
+
                 logger.warn('Connection closed:', lastDisconnect?.error?.message);
 
                 if (shouldReconnect) {
@@ -121,7 +126,7 @@ class WABot {
             logger.info(`Pesan diterima: "${body}" dari ${msg.key.remoteJid}`);
 
             // Cek prefix
-            if (! body.startsWith(this.prefix)) {
+            if (!body.startsWith(this.prefix)) {
                 logger.info('Bukan command, diabaikan');
                 return;
             }
@@ -166,11 +171,11 @@ class WABot {
                     logger.info('Menjalankan command .ytmp3');
                     await youtubeCommand.downloadAudio(msg, this.sock, body);
                     break;
-                case 'yt': 
+                case 'yt':
                     logger.info('Menjalankan command .yt');
                     await youtubeCommand.downloadVideo(msg, this.sock, body);
                     break;
-                case 'fb': 
+                case 'fb':
                     logger.info('Menjalankan command .fb');
                     await facebookCommand.downloadVideo(msg, this.sock, body);
                     break;
@@ -182,6 +187,29 @@ class WABot {
                 case 'ig':
                     logger.info('Menjalankan command .ig');
                     await instagramCommand.downloadMedia(msg, this.sock, body);
+                    break;
+                case 'twitter':
+                case 'x':
+                    logger.info('Menjalankan command .twitter');
+                    await twitterCommand.downloadVideo(msg, this.sock, body);
+                    break;
+                case 'poll':
+                case 'pool':
+                    logger.info('Menjalankan command .poll');
+                    await pollCommand.createPoll(msg, this.sock, body);
+                    break;
+                case 'say':
+                    logger.info('Menjalankan command .say');
+                    await ttsCommand.createAudio(msg, this.sock, body);
+                    break;
+                case 'tr':
+                    logger.info('Menjalankan command .tr');
+                    await translateCommand.translate(msg, this.sock, body);
+                    break;
+                case 'quran':
+                case 'ngaji':
+                    logger.info('Menjalankan command .quran');
+                    await quranCommand.getAyat(msg, this.sock, body);
                     break;
                 case 'quote':
                     logger.info('Menjalankan command .quote');
@@ -210,7 +238,7 @@ class WABot {
 
     getMessageText(msg) {
         const message = msg.message;
-        
+
         if (message.conversation) {
             return message.conversation;
         }
@@ -223,7 +251,7 @@ class WABot {
         if (message.videoMessage?.caption) {
             return message.videoMessage.caption;
         }
-        
+
         return null;
     }
 
@@ -244,16 +272,30 @@ class WABot {
 ├ \`.yt [link]\` - YouTube → MP4 (100MB max) 🎬
 ├ \`.fb [link]\` - Facebook Video
 ├ \`.tt [link]\` - TikTok Video
-└ \`.ig [link]\` - Instagram Media
+├ \`.ig [link]\` - Instagram Media
+└ \`.x [link]\` - Twitter/X Video
 
 *🤖 AI FEATURES*
 ├ \`.quote [teks]\` - Motivasi AI (Groq Llama 3.3)
 └ \`.image [prompt]\` - Generate Image AI
 
+*📊 Group Tools*
+└ \`.poll [tanya],[opsi1],[opsi2]\` - Buat Polling
+
+*🗣️ TTS*
+└ \`.say [teks]\` - Text to Speech (Indonesia)
+
+*🌐 TRANSLATE (AI)*
+└ \`.tr [lang] [teks]\` - Translate pintar
+👉 Lang: id, en, jp
+
+*🕌 ISLAMIC*
+└ \`.quran [surat] [ayat]\` - Baca Al-Quran
+
 *💡 TIPS: *
 • Bisa reply pesan yang ada link!
 
-_Bot by vazul76 | v2.0.0 - Powered by Baileys_`;
+_Bot by vazul76 - v2.0.0_`;
 
         await helpers.replyWithTyping(this.sock, msg, helpText, 2000);
         await helpers.reactSuccess(this.sock, msg);
