@@ -185,7 +185,7 @@ class WABot {
                     break;
                 case 'quote':
                     logger.info('Menjalankan command .quote');
-                    await quoteCommand.sendQuote(msg, this.sock);
+                    await quoteCommand.sendQuote(msg, this.sock, body);  // ← Add body parameter
                     break;
                 case 'image':
                 case 'img':

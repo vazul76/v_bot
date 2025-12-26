@@ -10,29 +10,39 @@ class QuoteCommand {
         });
     }
 
-    async sendQuote(msg, sock) {
+    async sendQuote(msg, sock, messageBody) {  // ← Add messageBody parameter
         try {
             logger.info('Memproses command .quote');
 
             await helpers.reactCommandReceived(sock, msg);
 
-            // Check quoted message for context
-            let context = '';
-            const quoted = await helpers.getQuotedMessage(msg);
-            
-            if (quoted) {
-                context = this.getTextFromMessage(quoted.message);
-                logger.info(`Quote with context: ${context}`);
+            // ✅ NEW: Extract text dari command
+            let context = messageBody.replace(/^\.quote\s*/i, '').trim();
+
+            // Jika gak ada text di command, cek quoted message
+            if (!context) {
+                const quoted = await helpers.getQuotedMessage(msg);
+                
+                if (quoted) {
+                    context = this.getTextFromMessage(quoted.message);
+                    logger.info(`Quote with quoted context: ${context}`);
+                }
+            } else {
+                logger.info(`Quote with text parameter: ${context}`);
             }
 
             await helpers.reactProcessing(sock, msg);
 
             logger.info('Generating quote with Groq AI...');
 
-            let prompt = 'Berikan satu quote motivasi yang inspiratif dan bermakna dalam bahasa Indonesia.Hanya quote-nya saja, tanpa penjelasan tambahan.';
+            let prompt;
             
             if (context) {
-                prompt = `Seseorang mengatakan: "${context}"\n\nBerikan satu quote motivasi yang relevan dan menyemangati dalam bahasa Indonesia sebagai respon. Hanya quote-nya saja, tanpa penjelasan tambahan.`;
+                // Dengan context (dari parameter atau quoted)
+                prompt = `Seseorang mengatakan:  "${context}"\n\nBerikan satu quote motivasi yang relevan dan menyemangati dalam bahasa Indonesia sebagai respon. Hanya quote-nya saja, tanpa penjelasan tambahan.`;
+            } else {
+                // Random quote (no context)
+                prompt = 'Berikan satu quote motivasi yang inspiratif dan bermakna dalam bahasa Indonesia.Hanya quote-nya saja, tanpa penjelasan tambahan.';
             }
 
             const chatCompletion = await this.groq.chat.completions.create({
@@ -51,9 +61,8 @@ class QuoteCommand {
 
             logger.info('Quote generated');
 
-            const formattedQuote = `_${quote}_\n\n_Semangat terus ya!_`;
+            const formattedQuote = `${quote}`;
 
-            await helpers.simulateTyping(sock, msg, 2000);
             await helpers.replyWithTyping(sock, msg, formattedQuote, 2000);
 
             await helpers.reactSuccess(sock, msg);
@@ -68,7 +77,7 @@ class QuoteCommand {
             } else if (error.message.includes('rate limit')) {
                 await helpers.replyWithTyping(sock, msg, '❌ Rate limit tercapai!\n\n⏳ Coba lagi nanti.');
             } else {
-                await helpers.replyWithTyping(sock, msg, '❌ Gagal membuat quote!');
+                await helpers.replyWithTyping(sock, msg, '❌ Gagal membuat quote! ');
             }
         }
     }
