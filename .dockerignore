@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+.env
+auth_baileys
+temp
+.git
+.github
+.vscode
+dist
+.DS_Store
