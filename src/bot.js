@@ -17,6 +17,7 @@ const pollCommand = require('./commands/poll');
 const ttsCommand = require('./commands/tts');
 const translateCommand = require('./commands/translate');
 const quranCommand = require('./commands/quran');
+const calcCommand = require('./commands/calc');
 
 class WABot {
     constructor() {
@@ -211,6 +212,12 @@ class WABot {
                     logger.info('Menjalankan command .quran');
                     await quranCommand.getAyat(msg, this.sock, body);
                     break;
+                case 'itung':
+                case 'hitung':
+                case 'calc':
+                    logger.info('Menjalankan command .itung');
+                    await calcCommand.evaluate(msg, this.sock, body);
+                    break;
                 case 'quote':
                     logger.info('Menjalankan command .quote');
                     await quoteCommand.sendQuote(msg, this.sock, body);  // ← Add body parameter
@@ -258,7 +265,7 @@ class WABot {
     async sendHelp(msg) {
         await helpers.reactCommandReceived(this.sock, msg);
 
-        const helpText = `*🤖 V-ULTIMATE BOT v2.0 - BAILEYS*
+        const helpText = `*🗿 V-ULTIMATE BOT v2.0*
 
 *📌 STICKER TOOLS*
 ├ \`.s\` - Gambar/Video → Sticker
@@ -288,6 +295,9 @@ class WABot {
 *🌐 TRANSLATE (AI)*
 └ \`.tr [lang] [teks]\` - Translate pintar
 👉 Lang: id, en, jp
+
+*🧮 TOOLS*
+└ \`.itung [soal]\` - Kalkulator (1x5+2)
 
 *🕌 ISLAMIC*
 └ \`.quran [surat] [ayat]\` - Baca Al-Quran
