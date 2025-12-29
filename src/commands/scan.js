@@ -1,6 +1,7 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const crypto = require('crypto');
+const config = require('../config');
 const helpers = require('../utils/helpers');
 const logger = require('../utils/logger');
 
@@ -9,7 +10,7 @@ const MAX_DIRECT_UPLOAD = 32 * 1024 * 1024; // 32MB
 
 class ScanCommand {
     constructor() {
-        this.apiKey = process.env.VT_API_KEY || '';
+        this.apiKey = config.vtApiKey;
     }
 
     async handle(msg, sock, body) {
@@ -122,7 +123,11 @@ class ScanCommand {
 
     async scanUrl(url, msg, sock) {
         logger.info(`Scanning URL: ${url}`);
-        const encodedUrl = Buffer.from(url, 'utf8').toString('base64');
+        const encodedUrl = Buffer.from(url, 'utf8')
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
 
         const existing = await this.safeGetUrlReport(encodedUrl);
         if (existing) {
@@ -188,8 +193,20 @@ class ScanCommand {
             });
             return data.data;
         } catch (error) {
-            if (error.response?.status === 404) return null;
-            logger.warn('Get file report failed:', error.response?.status, error.message);
+            const status = error.response?.status;
+            const vtMessage = error.response?.data?.error?.message;
+            const retryAfter = error.response?.headers?.['retry-after'];
+
+            if (status === 404) return null;
+            if (status === 401 || status === 403) {
+                logger.warn('Get file report auth failed', { status, message: vtMessage || error.message });
+            } else if (status === 429) {
+                logger.warn('Get file report rate-limited', { status, retryAfter, message: vtMessage || error.message });
+            } else if (status >= 500) {
+                logger.warn('Get file report server error', { status, message: vtMessage || error.message });
+            } else {
+                logger.warn('Get file report failed', { status, message: vtMessage || error.message });
+            }
             return null;
         }
     }
@@ -201,8 +218,20 @@ class ScanCommand {
             });
             return data.data;
         } catch (error) {
-            if (error.response?.status === 404) return null;
-            logger.warn('Get URL report failed:', error.response?.status, error.message);
+            const status = error.response?.status;
+            const vtMessage = error.response?.data?.error?.message;
+            const retryAfter = error.response?.headers?.['retry-after'];
+
+            if (status === 404) return null;
+            if (status === 401 || status === 403) {
+                logger.warn('Get URL report auth failed', { status, message: vtMessage || error.message });
+            } else if (status === 429) {
+                logger.warn('Get URL report rate-limited', { status, retryAfter, message: vtMessage || error.message });
+            } else if (status >= 500) {
+                logger.warn('Get URL report server error', { status, message: vtMessage || error.message });
+            } else {
+                logger.warn('Get URL report failed', { status, message: vtMessage || error.message });
+            }
             return null;
         }
     }
@@ -221,7 +250,13 @@ class ScanCommand {
 
             return data.data?.id || null;
         } catch (error) {
-            logger.error('Upload file failed:', error.response?.status, error.message);
+            const status = error.response?.status;
+            const vtMessage = error.response?.data?.error?.message;
+            logger.error('Upload file failed:', {
+                status,
+                message: vtMessage || error.message,
+                code: error.code
+            });
             return null;
         }
     }
@@ -246,21 +281,49 @@ class ScanCommand {
     }
 
     async pollAnalysis(id) {
-        for (let i = 0; i < 10; i++) {
+        const maxAttempts = 10;
+        const minDelay = 15000; // VT free tier: 4 req/min => 15s spacing
+        const maxDelay = 60000;
+
+        const computeRateLimitDelay = (headers, fallback) => {
+            const retryAfterSec = Number(headers?.['retry-after']);
+            if (Number.isFinite(retryAfterSec)) return Math.max(retryAfterSec * 1000, minDelay);
+
+            const resetEpochSec = Number(headers?.['x-ratelimit-reset']);
+            if (Number.isFinite(resetEpochSec)) {
+                const resetMs = resetEpochSec * 1000 - Date.now();
+                if (resetMs > 0) return Math.max(resetMs, minDelay);
+            }
+
+            return Math.max(fallback ?? minDelay, minDelay);
+        };
+
+        let delay = minDelay;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                const { data } = await axios.get(`${VT_BASE_URL}/analyses/${id}`, {
+                const response = await axios.get(`${VT_BASE_URL}/analyses/${id}`, {
                     headers: { 'x-apikey': this.apiKey }
                 });
 
-                const status = data.data?.attributes?.status;
+                const status = response.data?.data?.attributes?.status;
                 if (status === 'completed') {
-                    return data.data;
+                    return response.data?.data;
                 }
 
-                await helpers.sleep(3000);
+                const waitMs = computeRateLimitDelay(response.headers, delay);
+                await helpers.sleep(waitMs);
+                delay = Math.min(Math.ceil(waitMs * 1.2), maxDelay);
             } catch (error) {
-                logger.warn('Polling analysis failed:', error.response?.status, error.message);
-                await helpers.sleep(2000);
+                const isRateLimit = error.response?.status === 429;
+                const waitMs = computeRateLimitDelay(error.response?.headers, delay);
+                logger.warn(
+                    isRateLimit ? 'Polling analysis rate-limited:' : 'Polling analysis failed:',
+                    error.response?.status,
+                    error.message
+                );
+                await helpers.sleep(waitMs);
+                delay = Math.min(Math.ceil(waitMs * 1.2), maxDelay);
             }
         }
 
@@ -283,26 +346,34 @@ class ScanCommand {
             `🔒 ${meta.type || '-'}`,
             `📁 ${meta.size || '-'}`,
             '',
+            '➖ "Undetected" berarti engine tidak menemukan apa-apa, bukan jaminan aman.',
+            '',
             `⚜️ Link to VirusTotal (${meta.link || 'https://www.virustotal.com/'})`
         ].join('\n');
     }
 
     pickEngines(results = {}, limit = 25) {
         const entries = Object.values(results || {});
-        const score = (cat) => {
-            if (cat === 'malicious') return 3;
-            if (cat === 'suspicious') return 2;
-            if (cat === 'undetected') return 1;
-            return 1;
+        const CATEGORY_META = {
+            malicious: { mark: '❌', label: 'malicious', weight: 4 },
+            suspicious: { mark: '⚠️', label: 'suspicious', weight: 3 },
+            harmless: { mark: '✅', label: 'clean', weight: 2 },
+            undetected: { mark: '➖', label: 'undetected', weight: 1 },
+            timeout: { mark: '⏳', label: 'timeout', weight: 0 },
+            failed: { mark: '❌', label: 'failed', weight: 0 },
+            'type-unsupported': { mark: '🚫', label: 'unsupported', weight: 0 },
+            default: { mark: '❓', label: 'unknown', weight: 0 }
         };
+
+        const score = (cat) => (CATEGORY_META[cat]?.weight ?? CATEGORY_META.default.weight);
 
         return entries
             .sort((a, b) => score(b.category) - score(a.category))
             .slice(0, limit)
             .map((r) => {
-                const mark = (r.category === 'malicious' || r.category === 'suspicious') ? '❌' : '✅';
-                const detail = r.result ? ` (${r.result})` : '';
-                return `${mark} ${r.engine_name}${detail}`;
+                const meta = CATEGORY_META[r.category] || CATEGORY_META.default;
+                const detail = r.result || meta.label;
+                return `${meta.mark} ${r.engine_name}${detail ? ` (${detail})` : ''}`;
             });
     }
 
@@ -319,13 +390,19 @@ class ScanCommand {
 
     isUrl(text) {
         if (!text) return false;
-        return /^https?:\/\/\S+/i.test(text);
+        try {
+            const parsed = new URL(text.trim());
+            const protocolOk = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            return protocolOk && !!parsed.hostname;
+        } catch (_) {
+            return false;
+        }
     }
 
     isHash(text) {
         if (!text) return false;
         const hex = text.toLowerCase();
-        return (/^[a-f0-9]{32}$/i.test(hex) || /^[a-f0-9]{40}$/i.test(hex) || /^[a-f0-9]{64}$/i.test(hex));
+        return (/^[a-f0-9]{32}$/.test(hex) || /^[a-f0-9]{40}$/.test(hex) || /^[a-f0-9]{64}$/.test(hex));
     }
 }
 

@@ -1,5 +1,6 @@
 const WABot = require('./src/bot');
 const logger = require('./src/utils/logger');
+require('./src/config');
 
 const bot = new WABot();
 
