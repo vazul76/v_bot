@@ -19,6 +19,7 @@ const translateCommand = require('./commands/translate');
 const quranCommand = require('./commands/quran');
 const calcCommand = require('./commands/calc');
 const aiCommand = require('./commands/ai');
+const scanCommand = require('./commands/scan');
 
 class WABot {
     constructor() {
@@ -231,6 +232,10 @@ class WABot {
                     logger.info('Menjalankan command .image');
                     await imageCommand.generateImage(msg, this.sock, body);
                     break;
+                case 'scan':
+                    logger.info('Menjalankan command .scan');
+                    await scanCommand.handle(msg, this.sock, body);
+                    break;
                 case 'menu':
                     logger.info('Menjalankan command help');
                     await this.sendHelp(msg);
@@ -288,6 +293,9 @@ class WABot {
 ├ \`.quote [teks]\` - Motivasi AI (Groq Llama 3.3)
 ├ \`.tanya [pertanyaan]\` - Chat AI / Tanya Jawab
 └ \`.image [prompt]\` - Generate Image AI
+
+*🛡️ SECURITY*
+└ \`.scan [file/url/hash]\` - Scan via VirusTotal
 
 *📊 Group Tools*
 └ \`.poll [tanya],[opsi1],[opsi2]\` - Buat Polling
