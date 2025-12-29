@@ -5,12 +5,9 @@ services:
       args:
         BUILD_ENV: development
     volumes:
-      - ./:/usr/src/app:cached
-      - node_modules:/usr/src/app/node_modules
       - ./auth_baileys:/usr/src/app/auth_baileys
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
     command: npm run dev
-
-volumes:
-  node_modules:
