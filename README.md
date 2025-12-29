@@ -20,6 +20,7 @@
 
 ### 🤖 AI Features
 - **Smart Motivation (Groq AI)**: Kirim motivasi cerdas yang dibuat oleh AI. Mendukung konteks balasan (reply) pesan untuk memberikan semangat yang relevan.
+- **Chat AI (Tanya Jawab)**: Tanya apa saja ke bot (resep, coding, curhat) layaknya asisten pribadi (Powered by Llama 3).
 - **AI Image Generator**: Generate gambar dari teks menggunakan Pollinations AI.
 
 ### 📥 Social Media Downloader
@@ -143,6 +144,7 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 | `.tt [Link]` | Download Video TikTok | Max 64MB |
 | `.ig [Link]` | Download Media Instagram | Max 64MB |
 | `.quote [Teks]` | Motivasi AI (Llama 3.3) | - |
+| `.tanya [Pertanyaan]` | Chat AI / Tanya Jawab | - |
 | `.image [Prompt]` | Generate Image AI | - |
 | `.twitter` / `.x` | Download Video Twitter | - |
 | `.poll` | Buat Polling WhatsApp | - |

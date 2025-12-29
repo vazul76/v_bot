@@ -18,6 +18,7 @@ const ttsCommand = require('./commands/tts');
 const translateCommand = require('./commands/translate');
 const quranCommand = require('./commands/quran');
 const calcCommand = require('./commands/calc');
+const aiCommand = require('./commands/ai');
 
 class WABot {
     constructor() {
@@ -208,13 +209,10 @@ class WABot {
                     await translateCommand.translate(msg, this.sock, body);
                     break;
                 case 'quran':
-                case 'ngaji':
                     logger.info('Menjalankan command .quran');
                     await quranCommand.getAyat(msg, this.sock, body);
                     break;
                 case 'itung':
-                case 'hitung':
-                case 'calc':
                     logger.info('Menjalankan command .itung');
                     await calcCommand.evaluate(msg, this.sock, body);
                     break;
@@ -222,13 +220,17 @@ class WABot {
                     logger.info('Menjalankan command .quote');
                     await quoteCommand.sendQuote(msg, this.sock, body);  // ← Add body parameter
                     break;
+                case 'tanya':
+                case 'ask':
+                    logger.info('Menjalankan command .tanya');
+                    await aiCommand.answerQuestion(msg, this.sock, body);
+                    break;
                 case 'image':
                 case 'img':
                 case 'generate':
                     logger.info('Menjalankan command .image');
                     await imageCommand.generateImage(msg, this.sock, body);
                     break;
-                case 'help':
                 case 'menu':
                     logger.info('Menjalankan command help');
                     await this.sendHelp(msg);
@@ -284,6 +286,7 @@ class WABot {
 
 *🤖 AI FEATURES*
 ├ \`.quote [teks]\` - Motivasi AI (Groq Llama 3.3)
+├ \`.tanya [pertanyaan]\` - Chat AI / Tanya Jawab
 └ \`.image [prompt]\` - Generate Image AI
 
 *📊 Group Tools*
