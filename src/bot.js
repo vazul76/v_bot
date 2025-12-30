@@ -253,17 +253,36 @@ class WABot {
     getMessageText(msg) {
         const message = msg.message;
 
+        // Standard text messages
         if (message.conversation) {
             return message.conversation;
         }
         if (message.extendedTextMessage?.text) {
             return message.extendedTextMessage.text;
         }
+
+        // Direct media captions (simple caption, bukan wrapper)
         if (message.imageMessage?.caption) {
             return message.imageMessage.caption;
         }
         if (message.videoMessage?.caption) {
             return message.videoMessage.caption;
+        }
+        if (message.documentMessage?.caption) {
+            return message.documentMessage.caption;
+        }
+
+        // ✅ FIXED: Caption wrappers (Baileys/WA structure for media with caption)
+        // When user sends file/image/video WITH caption, WA wraps it like this:
+        // { documentWithCaptionMessage: { message: { documentMessage: {...}, caption: "text" } } }
+        if (message.documentWithCaptionMessage?.message?.documentMessage?.caption) {
+            return message.documentWithCaptionMessage.message.documentMessage.caption;
+        }
+        if (message.imageWithCaptionMessage?.message?.imageMessage?.caption) {
+            return message.imageWithCaptionMessage.message.imageMessage.caption;
+        }
+        if (message.videoWithCaptionMessage?.message?.videoMessage?.caption) {
+            return message.videoWithCaptionMessage.message.videoMessage.caption;
         }
 
         return null;
@@ -292,7 +311,7 @@ class WABot {
 *🤖 AI FEATURES*
 ├ \`.quote [teks]\` - Motivasi AI (Groq Llama 3.3)
 ├ \`.tanya [pertanyaan]\` - Chat AI / Tanya Jawab
-└ \`.image [prompt]\` - Generate Image AI
+└ \`.image [prompt]\` - Generate Image AI (\`.img\`, \`.generate\`)
 
 *🛡️ SECURITY*
 └ \`.scan [file/url/hash]\` - Scan via VirusTotal

@@ -46,22 +46,76 @@ class ScanCommand {
         } catch (error) {
             logger.error('Error in .scan:', error);
             await helpers.reactError(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '❌ Gagal menjalankan scan. Coba lagi nanti.');
+            await helpers.replyWithTyping(sock, msg, '❌ Gagal menjalankan scan.Coba lagi nanti.');
         }
     }
 
     getMediaTarget(msg, quoted) {
-        const hasMedia = (m) => !!(m?.documentMessage || m?.imageMessage || m?.videoMessage || m?.stickerMessage || m?.audioMessage);
+        // ✅ FIX: Handle documentWithCaptionMessage dan message types lain dengan caption
+        const hasMedia = (m) => {
+            if (! m) return false;
+            
+            // Check direct message types
+            if (m.documentMessage || m.imageMessage || m.videoMessage || m.stickerMessage || m.audioMessage) {
+                return true;
+            }
+            
+            // ✅ NEW:  Check caption wrapper messages
+            if (m.documentWithCaptionMessage?.message?.documentMessage) {
+                return true;
+            }
+            if (m.imageWithCaptionMessage?.message?.imageMessage) {
+                return true;
+            }
+            if (m.videoWithCaptionMessage?.message?.videoMessage) {
+                return true;
+            }
+            
+            return false;
+        };
 
+        const extractMedia = (m) => {
+            if (!m) return null;
+            
+            // Direct messages
+            if (m.documentMessage || m.imageMessage || m.videoMessage || m.stickerMessage || m.audioMessage) {
+                return m;
+            }
+            
+            // ✅ NEW: Extract from caption wrappers
+            if (m.documentWithCaptionMessage?.message) {
+                return m.documentWithCaptionMessage.message;
+            }
+            if (m.imageWithCaptionMessage?.message) {
+                return m.imageWithCaptionMessage.message;
+            }
+            if (m.videoWithCaptionMessage?.message) {
+                return m.videoWithCaptionMessage.message;
+            }
+            
+            return null;
+        };
+
+        // Check current message
         if (hasMedia(msg.message)) {
-            return msg;
+            const extractedMessage = extractMedia(msg.message);
+            if (extractedMessage) {
+                return {
+                    key: msg.key,
+                    message: extractedMessage
+                };
+            }
         }
 
+        // Check quoted message
         if (quoted?.message && hasMedia(quoted.message)) {
-            return {
-                key: { remoteJid: msg.key.remoteJid, id: quoted.id, fromMe: false },
-                message: quoted.message
-            };
+            const extractedMessage = extractMedia(quoted.message);
+            if (extractedMessage) {
+                return {
+                    key:  { remoteJid: msg.key.remoteJid, id: quoted.id, fromMe: false },
+                    message: extractedMessage
+                };
+            }
         }
 
         return null;
@@ -97,7 +151,7 @@ class ScanCommand {
         }
 
         const analysisId = await this.uploadFile(buffer, fileName);
-        if (!analysisId) {
+        if (! analysisId) {
             await helpers.replyWithTyping(sock, originalMsg, '❌ Upload ke VirusTotal gagal.');
             return await helpers.reactError(sock, originalMsg);
         }
@@ -132,7 +186,7 @@ class ScanCommand {
         const existing = await this.safeGetUrlReport(encodedUrl);
         if (existing) {
             const text = this.formatReport(existing.attributes?.last_analysis_stats, existing.attributes?.last_analysis_results, {
-                title: `URL: ${url}`,
+                title:  `URL: ${url}`,
                 type: 'URL',
                 size: '-',
                 link: `https://www.virustotal.com/gui/url/${existing.id}`
@@ -170,7 +224,7 @@ class ScanCommand {
         logger.info(`Scanning by hash: ${hash}`);
         const report = await this.safeGetFileReport(hash);
 
-        if (!report) {
+        if (! report) {
             await helpers.replyWithTyping(sock, msg, '❌ Hash tidak ditemukan di VirusTotal. Coba upload file-nya dengan .scan file.');
             return await helpers.reactError(sock, msg);
         }
@@ -254,7 +308,7 @@ class ScanCommand {
             const vtMessage = error.response?.data?.error?.message;
             logger.error('Upload file failed:', {
                 status,
-                message: vtMessage || error.message,
+                message:  vtMessage || error.message,
                 code: error.code
             });
             return null;
@@ -282,7 +336,7 @@ class ScanCommand {
 
     async pollAnalysis(id) {
         const maxAttempts = 10;
-        const minDelay = 15000; // VT free tier: 4 req/min => 15s spacing
+        const minDelay = 15000;
         const maxDelay = 60000;
 
         const computeRateLimitDelay = (headers, fallback) => {
@@ -295,7 +349,7 @@ class ScanCommand {
                 if (resetMs > 0) return Math.max(resetMs, minDelay);
             }
 
-            return Math.max(fallback ?? minDelay, minDelay);
+            return Math.max(fallback ??  minDelay, minDelay);
         };
 
         let delay = minDelay;
@@ -318,9 +372,9 @@ class ScanCommand {
                 const isRateLimit = error.response?.status === 429;
                 const waitMs = computeRateLimitDelay(error.response?.headers, delay);
                 logger.warn(
-                    isRateLimit ? 'Polling analysis rate-limited' : 'Polling analysis failed',
+                    isRateLimit ?  'Polling analysis rate-limited' : 'Polling analysis failed',
                     {
-                        status: error.response?.status,
+                        status:  error.response?.status,
                         message: error.message
                     }
                 );
@@ -337,10 +391,10 @@ class ScanCommand {
         const detections = (stats.malicious || 0) + (stats.suspicious || 0);
 
         const engines = this.pickEngines(results, 25);
-        const engineLines = engines.length ? engines.join('\n') : 'Tidak ada detail engine.';
+        const engineLines = engines.length ?  engines.join('\n') : 'Tidak ada detail engine.';
 
         return [
-            `🧬 Detections: ${detections} / ${totalEngines || '??'}`,
+            `🧬 Detections: ${detections} / ${totalEngines || '?? '}`,
             '',
             engineLines,
             '',
@@ -350,7 +404,7 @@ class ScanCommand {
             '',
             '➖ "Undetected" berarti engine tidak menemukan apa-apa, bukan jaminan aman.',
             '',
-            `⚜️ Link to VirusTotal (${meta.link || 'https://www.virustotal.com/'})`
+            `⚜️ Link to VirusTotal:  ${meta.link || 'https://www.virustotal.com/'}`
         ].join('\n');
     }
 
@@ -359,15 +413,15 @@ class ScanCommand {
         const CATEGORY_META = {
             malicious: { mark: '❌', label: 'malicious', weight: 4 },
             suspicious: { mark: '⚠️', label: 'suspicious', weight: 3 },
-            harmless: { mark: '✅', label: 'clean', weight: 2 },
+            harmless: { mark:  '✅', label: 'clean', weight: 2 },
             undetected: { mark: '➖', label: 'undetected', weight: 1 },
             timeout: { mark: '⏳', label: 'timeout', weight: 0 },
             failed: { mark: '❌', label: 'failed', weight: 0 },
             'type-unsupported': { mark: '🚫', label: 'unsupported', weight: 0 },
-            default: { mark: '❓', label: 'unknown', weight: 0 }
+            default: { mark: '❓', label: 'unknown', weight:  0 }
         };
 
-        const score = (cat) => (CATEGORY_META[cat]?.weight ?? CATEGORY_META.default.weight);
+        const score = (cat) => (CATEGORY_META[cat]?.weight ??  CATEGORY_META.default.weight);
 
         return entries
             .sort((a, b) => score(b.category) - score(a.category))
@@ -387,7 +441,10 @@ class ScanCommand {
     }
 
     extractFileName(msg) {
-        return msg.message?.documentMessage?.fileName || null;
+        // ✅ FIX:  Extract fileName from documentMessage
+        return msg.message?.documentMessage?.fileName || 
+               msg.message?.documentWithCaptionMessage?.message?.documentMessage?.fileName || 
+               null;
     }
 
     isUrl(text) {

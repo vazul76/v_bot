@@ -35,6 +35,7 @@
 - **Translate AI**: Terjemahkan teks ke berbagai bahasa (Indo, Inggris, Jepang) dengan AI yang natural.
 - **WhatsApp Poll**: Buat voting/polling langsung di grup WhatsApp.
 - **Al-Quran**: Baca ayat Al-Quran lengkap dengan terjemahan (support range ayat).
+- **VirusTotal Scan**: Scan file, URL, atau hash untuk mendeteksi malware menggunakan API VirusTotal.
 
 ### ️ Smart System
 - **Offline Filtering**: Bot cerdas yang mengabaikan pesan saat sedang offline untuk mencegah spam penumpukan perintah saat baru startup.
@@ -52,6 +53,7 @@
 - **[wa-sticker-formatter](https://github.com/AlenSaito1/wa-sticker-formatter)** - Sticker Creator
 - **[canvas](https://github.com/Automattic/node-canvas)** - Image Processing
 - **[sharp](https://github.com/lovell/sharp)** - High Performance Image Processing
+- **[VirusTotal API](https://www.virustotal.com/)** - Security Scanning Engine
 
 ---
 
@@ -152,6 +154,8 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 | `.say [Teks]` | Google TTS (Auto-Detect Ar/Jp) | Max 200 char |
 | `.tr [Lang] [Teks]` | Translate AI (id, en, jp) | - |
 | `.quran [Surat] [Ayat]` | Baca Al-Quran (Arab/Lat/Indo) | - |
+| `.scan [File/URL/Hash]` | VirusTotal Malware Scanner | Max 32MB |
+| `.itung [Soal]` | Kalkulator Matematika (support sin/cos/akar) | - |
 
 > [!TIP]
 > **Fitur Balasan (Reply):** Kamu bisa membalas (reply) pesan yang berisi link atau teks dengan perintah `.yt`, `.tr`, `.say` dll. tanpa perlu mengetik ulang!
@@ -174,6 +178,9 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 │   │   ├── poll.js        # WhatsApp Poll feature
 │   │   ├── tts.js         # Text-to-Speech (Google TTS)
 │   │   ├── translate.js   # AI Translator
+│   │   ├── scan.js        # VirusTotal Scanner
+│   │   ├── calc.js        # Calculator tool
+│   │   ├── ai.js          # AI Chat logic
 │   │   └── quran.js       # Fitur Al-Quran
 │   ├── utils/             # Helper & Logger utilities
 │   └── bot.js             # Logic utama WhatsApp Bot (Baileys)
@@ -191,8 +198,11 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 Buat file `.env` di root project dengan konfigurasi berikut:
 
 ```env
-# Groq API Key (Required untuk .quote command)
+# Groq API Key (Required untuk .quote & .tanya command)
 GROQ_API_KEY=your_groq_api_key_here
+
+# VirusTotal API Key (Required untuk .scan command)
+VT_API_KEY=your_virustotal_api_key_here
 ```
 
 Dapatkan Groq API Key gratis di: [https://console.groq.com/keys](https://console.groq.com/keys)
