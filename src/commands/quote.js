@@ -1,12 +1,12 @@
 const Groq = require('groq-sdk');
 const logger = require('../utils/logger');
 const helpers = require('../utils/helpers');
-require('dotenv').config();
+const config = require('../config');
 
 class QuoteCommand {
     constructor() {
         this.groq = new Groq({
-            apiKey: process.env.GROQ_API_KEY
+            apiKey: config.groqApiKey
         });
     }
 

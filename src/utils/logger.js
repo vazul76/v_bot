@@ -1,50 +1,51 @@
-const chalk = require('chalk');
-
 class Logger {
     constructor() {
-        this.getTimestamp = () => {
-            const now = new Date();
-            return now.toLocaleString('id-ID', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                day: '2-digit',
-                month: '2-digit',
-                year:  'numeric'
-            });
+        this.timestamp = () => new Date().toISOString();
+    }
+
+    sanitize(value) {
+        if (value instanceof Error) {
+            return {
+                name: value.name,
+                message: value.message,
+                stack: value.stack
+            };
+        }
+        return value;
+    }
+
+    log(level, message, args) {
+        const entry = {
+            level,
+            timestamp: this.timestamp(),
+            message: typeof message === 'string' ? message : String(message || '')
         };
+
+        const meta = args.map((item) => this.sanitize(item));
+        if (meta.length) entry.meta = meta;
+
+        const line = JSON.stringify(entry);
+        if (level === 'error') {
+            console.error(line);
+        } else {
+            console.log(line);
+        }
     }
 
     info(message, ...args) {
-        console.log(
-            chalk.blue(`[${this.getTimestamp()}] [INFO]`),
-            message,
-            ...args
-        );
+        this.log('info', message, args);
     }
 
     success(message, ...args) {
-        console.log(
-            chalk.green(`[${this.getTimestamp()}] [SUCCESS]`),
-            message,
-            ...args
-        );
+        this.log('success', message, args);
     }
 
     warn(message, ...args) {
-        console.log(
-            chalk.yellow(`[${this.getTimestamp()}] [WARN]`),
-            message,
-            ...args
-        );
+        this.log('warn', message, args);
     }
 
     error(message, ...args) {
-        console.log(
-            chalk.red(`[${this.getTimestamp()}] [ERROR]`),
-            message,
-            ...args
-        );
+        this.log('error', message, args);
     }
 }
 
