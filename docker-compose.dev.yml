@@ -4,6 +4,7 @@ services:
       context: .
       args:
         BUILD_ENV: development
+    user: root
     volumes:
       - ./:/usr/src/app:cached
       - /usr/src/app/node_modules
