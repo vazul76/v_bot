@@ -374,7 +374,7 @@ class ScanCommand {
             .slice(0, limit)
             .map((r) => {
                 const meta = CATEGORY_META[r.category] || CATEGORY_META.default;
-                const detail = r.result || meta.label;
+                const detail = r.result ?? meta.label;
                 return `${meta.mark} ${r.engine_name}${detail ? ` (${detail})` : ''}`;
             });
     }
