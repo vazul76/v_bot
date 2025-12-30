@@ -318,9 +318,11 @@ class ScanCommand {
                 const isRateLimit = error.response?.status === 429;
                 const waitMs = computeRateLimitDelay(error.response?.headers, delay);
                 logger.warn(
-                    isRateLimit ? 'Polling analysis rate-limited:' : 'Polling analysis failed:',
-                    error.response?.status,
-                    error.message
+                    isRateLimit ? 'Polling analysis rate-limited' : 'Polling analysis failed',
+                    {
+                        status: error.response?.status,
+                        message: error.message
+                    }
                 );
                 await helpers.sleep(waitMs);
                 delay = Math.min(Math.ceil(waitMs * 1.2), maxDelay);
