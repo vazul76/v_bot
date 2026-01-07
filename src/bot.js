@@ -10,21 +10,16 @@ const youtubeCommand = require('./commands/youtube');
 const facebookCommand = require('./commands/facebook');
 const tiktokCommand = require('./commands/tiktok');
 const instagramCommand = require('./commands/instagram');
-const quoteCommand = require('./commands/quote');
-const imageCommand = require('./commands/image');
 const twitterCommand = require('./commands/twitter');
 const pollCommand = require('./commands/poll');
 const ttsCommand = require('./commands/tts');
 const translateCommand = require('./commands/translate');
-const quranCommand = require('./commands/quran');
-const calcCommand = require('./commands/calc');
-const aiCommand = require('./commands/ai');
 const scanCommand = require('./commands/scan');
 
 class WABot {
     constructor() {
         this.sock = null;
-        this.prefix = '.';
+        this.prefix = '/';
         this.startupTime = null;
         this.authState = null;
         this.saveCreds = null;
@@ -180,12 +175,12 @@ class WABot {
                     break;
                 case 'fb':
                     logger.info('Menjalankan command .fb');
-                    await facebookCommand.downloadVideo(msg, this.sock, body);
+                    await facebookCommand.downloadMedia(msg, this.sock, body);
                     break;
                 case 'tiktok':
                 case 'tt':
                     logger.info('Menjalankan command .tiktok');
-                    await tiktokCommand.downloadVideo(msg, this.sock, body);
+                    await tiktokCommand.downloadMedia(msg, this.sock, body);
                     break;
                 case 'ig':
                     logger.info('Menjalankan command .ig');
@@ -194,7 +189,7 @@ class WABot {
                 case 'twitter':
                 case 'x':
                     logger.info('Menjalankan command .twitter');
-                    await twitterCommand.downloadVideo(msg, this.sock, body);
+                    await twitterCommand.downloadMedia(msg, this.sock, body);
                     break;
                 case 'poll':
                 case 'pool':
@@ -208,29 +203,6 @@ class WABot {
                 case 'tr':
                     logger.info('Menjalankan command .tr');
                     await translateCommand.translate(msg, this.sock, body);
-                    break;
-                case 'quran':
-                    logger.info('Menjalankan command .quran');
-                    await quranCommand.getAyat(msg, this.sock, body);
-                    break;
-                case 'itung':
-                    logger.info('Menjalankan command .itung');
-                    await calcCommand.evaluate(msg, this.sock, body);
-                    break;
-                case 'quote':
-                    logger.info('Menjalankan command .quote');
-                    await quoteCommand.sendQuote(msg, this.sock, body);  // ← Add body parameter
-                    break;
-                case 'tanya':
-                case 'ask':
-                    logger.info('Menjalankan command .tanya');
-                    await aiCommand.answerQuestion(msg, this.sock, body);
-                    break;
-                case 'image':
-                case 'img':
-                case 'generate':
-                    logger.info('Menjalankan command .image');
-                    await imageCommand.generateImage(msg, this.sock, body);
                     break;
                 case 'scan':
                     logger.info('Menjalankan command .scan');
@@ -302,35 +274,24 @@ class WABot {
 
 *📥 DOWNLOADER*
 ├ \`.ytmp3 [link]\` - YouTube → MP3 (16MB max)
-├ \`.yt [link]\` - YouTube → MP4 (100MB max) 🎬
-├ \`.fb [link]\` - Facebook Video
+├ \`.yt [link]\` - YouTube → Video (100MB max) 🎬
+├ \`.fb [link]\` - Facebook Video/Photo
 ├ \`.tt [link]\` - TikTok Video
-├ \`.ig [link]\` - Instagram Media
-└ \`.x [link]\` - Twitter/X Video
-
-*🤖 AI FEATURES*
-├ \`.quote [teks]\` - Motivasi AI (Groq Llama 3.3)
-├ \`.tanya [pertanyaan]\` - Chat AI / Tanya Jawab
-└ \`.image [prompt]\` - Generate Image AI (\`.img\`, \`.generate\`)
+├ \`.ig [link]\` - Instagram Video/Photo
+└ \`.x [link]\` - Twitter/X Video/Photo
 
 *🛡️ SECURITY*
 └ \`.scan [file/url/hash]\` - Scan via VirusTotal
 
-*📊 Group Tools*
+*📊 GROUP TOOLS*
 └ \`.poll [tanya],[opsi1],[opsi2]\` - Buat Polling
 
 *🗣️ TTS*
-└ \`.say [teks]\` - Text to Speech (Indonesia)
+└ \`.say [teks]\` - Text to Speech (Auto-detect)
 
 *🌐 TRANSLATE (AI)*
 └ \`.tr [lang] [teks]\` - Translate pintar
 👉 Lang: id, en, jp
-
-*🧮 TOOLS*
-└ \`.itung [soal]\` - Kalkulator (1x5+2)
-
-*🕌 ISLAMIC*
-└ \`.quran [surat] [ayat]\` - Baca Al-Quran
 
 *💡 TIPS: *
 • Bisa reply pesan yang ada link!

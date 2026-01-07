@@ -7,14 +7,14 @@ const helpers = require('../utils/helpers');
 class TikTokDownloader {
     constructor() {
         this.tempDir = path.join(__dirname, '../../temp');
-        this.maxVideoSize = 100 * 1024 * 1024;
+        this.maxMediaSize = 100 * 1024 * 1024;
 
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
     }
 
-    async downloadVideo(msg, sock, messageBody) {
+    async downloadMedia(msg, sock, messageBody) {
         let tempFilePath = null;
 
         try {
@@ -37,45 +37,50 @@ class TikTokDownloader {
             logger.info(`Downloading from: ${url}`);
             
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Mendownload video dari TikTok...', 1500);
+            await helpers.replyWithTyping(sock, msg, '⏳ Mendownload dari TikTok...', 1500);
 
-            const outputTemplate = path.join(this.tempDir, `tiktok_video_${Date.now()}.%(ext)s`);
-            const expectedPath = outputTemplate.replace('.%(ext)s', '.mp4');
-            tempFilePath = expectedPath;
+            const outputTemplate = path.join(this.tempDir, `tiktok_media_${Date.now()}.%(ext)s`);
 
             try {
                 await ytdlpExec(url, {
-                    format: 'best[ext=mp4]/best',
+                    format: 'best',
                     output: outputTemplate,
                     noWarnings: true
                 });
             } catch (dlError) {
-                if (!fs.existsSync(tempFilePath) || fs.statSync(tempFilePath).size === 0) {
-                    throw dlError;
-                }
+                logger.warn('yt-dlp error:', dlError.message);
             }
 
-            if (!fs.existsSync(tempFilePath)) {
+            // Find downloaded file
+            const files = fs.readdirSync(this.tempDir).filter(f => f.startsWith(`tiktok_media_`));
+            if (files.length === 0) {
                 throw new Error('Download gagal');
             }
 
-            const stats = fs.statSync(tempFilePath);
-            logger.info(`Video size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+            tempFilePath = path.join(this.tempDir, files[files.length - 1]);
 
-            if (stats.size > this.maxVideoSize) {
+            const stats = fs.statSync(tempFilePath);
+            logger.info(`Media size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+
+            if (stats.size > this.maxMediaSize) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, `❌ Video terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)`);
+                return helpers.replyWithTyping(sock, msg, `❌ Media terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)`);
             }
 
-            const videoBuffer = fs.readFileSync(tempFilePath);
+            const mediaBuffer = fs.readFileSync(tempFilePath);
+            const ext = path.extname(tempFilePath).toLowerCase();
 
-            logger.info('Mengirim video...');
+            logger.info('Mengirim media...');
             await helpers.simulateTyping(sock, msg, 1500);
             
-            await helpers.replyVideoWithTyping(sock, msg, videoBuffer);
+            if (ext === '.mp4') {
+                await helpers.replyVideoWithTyping(sock, msg, mediaBuffer);
+            } else {
+                await helpers.replyImageWithTyping(sock, msg, mediaBuffer);
+            }
 
             await helpers.reactSuccess(sock, msg);
-            logger.success('Video berhasil dikirim!');
+            logger.success('Media berhasil dikirim!');
 
         } catch (error) {
             logger.error('Error:', error.message);

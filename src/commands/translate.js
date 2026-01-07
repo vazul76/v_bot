@@ -22,6 +22,12 @@ class TranslateCommand {
 
             await helpers.reactCommandReceived(sock, msg);
 
+            // Check if API key exists
+            if (!config.groqApiKey) {
+                await helpers.reactError(sock, msg);
+                return helpers.replyWithTyping(sock, msg, '❌ GROQ_API_KEY belum dikonfigurasi!\n\n📝 Tambahkan GROQ_API_KEY di file .env untuk menggunakan fitur translate.');
+            }
+
             // Parse args: .tr [lang] [text?]
             const args = messageBody.trim().split(/\s+/);
             const targetLangCode = args[1]?.toLowerCase();

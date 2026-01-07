@@ -5,7 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D%2018.x-green.svg)](https://nodejs.org/)
 [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-brightgreen.svg)](https://github.com/WhiskeySockets/Baileys)
 
-**V-Ultimate-Bot** adalah WhatsApp Bot Utility & AI yang dibangun dengan **@whiskeysockets/baileys**. Bot ini menggabungkan berbagai fitur canggih mulai dari Sticker Tools, Social Media Downloader (YT, FB, TikTok, IG), hingga Motivasi Cerdas berbasis AI (Groq).
+**V-Ultimate-Bot** adalah WhatsApp Bot Utility yang dibangun dengan **@whiskeysockets/baileys**. Bot ini menggabungkan berbagai fitur canggih mulai dari Sticker Tools, Social Media Downloader (YT, FB, TikTok, IG, Twitter/X), hingga berbagai utility tools.
 
 > **🔄 Update v2.0.0**: Bot telah bermigrasi dari `whatsapp-web.js` ke `@whiskeysockets/baileys` untuk performa yang lebih baik dan konsumsi resource yang lebih ringan (tidak memerlukan Chromium/browser).
 
@@ -18,26 +18,20 @@
 - **Sticker Maker**: Ubah gambar apapun menjadi sticker berkualitas tinggi.
 - **Sticker to Image**: Konversi kembali sticker (WebP) menjadi gambar (PNG) yang sudah di-trim transparasinya.
 
-### 🤖 AI Features
-- **Smart Motivation (Groq AI)**: Kirim motivasi cerdas yang dibuat oleh AI. Mendukung konteks balasan (reply) pesan untuk memberikan semangat yang relevan.
-- **Chat AI (Tanya Jawab)**: Tanya apa saja ke bot (resep, coding, curhat) dengan persona V-Bot yang unik (Powered by Llama 3).
-- **AI Image Generator**: Generate gambar dari teks menggunakan Pollinations AI.
-
 ### 📥 Social Media Downloader
 - **YouTube Downloader**: Download video (MP4) atau audio (MP3) dengan kualitas terbaik.
-- **Twitter/X Downloader**: Download video dari Twitter/X (bisa dari quoted message).
-- **Instagram Downloader**: Simpan Foto, Video, Reels, dan Postingan IG secara instan.
-- **TikTok Downloader**: Download video TikTok tanpa watermark.
-- **Facebook Downloader**: Download video dari Facebook dengan mudah.
+- **Twitter/X Downloader**: Download video dan foto dari Twitter/X.
+- **Instagram Downloader**: Download video dan Reels Instagram (foto belum support).
+- **TikTok Downloader**: Download video dan foto TikTok.
+- **Facebook Downloader**: Download video dan foto dari Facebook.
 
 ### 🗣️ Utility & Fun
-- **Text-to-Speech (TTS)**: Ubah teks jadi suara Google (Indo, Arab, Jepang support).
-- **Translate AI**: Terjemahkan teks ke berbagai bahasa (Indo, Inggris, Jepang) dengan AI yang natural.
+- **Text-to-Speech (TTS)**: Ubah teks jadi suara Google dengan deteksi bahasa otomatis (Indo, Arab, Jepang).
+- **Translate AI (Groq)**: Terjemahkan teks ke berbagai bahasa (Indo, Inggris, Jepang) dengan AI yang natural.
 - **WhatsApp Poll**: Buat voting/polling langsung di grup WhatsApp.
-- **Al-Quran**: Baca ayat Al-Quran lengkap dengan terjemahan (support range ayat).
 - **VirusTotal Scan**: Scan file, URL, atau hash untuk mendeteksi malware menggunakan API VirusTotal.
 
-### ️ Smart System
+### 🔧 Smart System
 - **Offline Filtering**: Bot cerdas yang mengabaikan pesan saat sedang offline untuk mencegah spam penumpukan perintah saat baru startup.
 - **Auto Reconnect**: Otomatis reconnect jika koneksi terputus.
 - **Multi-File Auth State**: Session management yang lebih aman dengan Baileys.
@@ -47,9 +41,8 @@
 ## 🛠️ Technology Stack
 
 - **[@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys)** - WhatsApp Web API
-- **[Groq SDK](https://groq.com/)** - AI API untuk motivational quotes (Llama 3.3)
-- **[Pollinations AI](https://pollinations.ai/)** - AI Image Generator
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - YouTube & Social Media Downloader
+- **[Groq SDK](https://groq.com/)** - AI Translation (Llama 3.3)
 - **[wa-sticker-formatter](https://github.com/AlenSaito1/wa-sticker-formatter)** - Sticker Creator
 - **[canvas](https://github.com/Automattic/node-canvas)** - Image Processing
 - **[sharp](https://github.com/lovell/sharp)** - High Performance Image Processing
@@ -103,17 +96,7 @@ sudo apt install -y python-is-python3
    > [!WARNING]
    > **Troubleshooting untuk Ubuntu VM**: Jika `npm install` gagal dengan error pada modul `sharp` atau `canvas`, pastikan semua dependencies sistem sudah terinstall. Untuk sharp, versi yang digunakan adalah `^0.32.6` yang lebih kompatibel dengan berbagai sistem.
 
-3. **Konfigurasi API Key**
-   Copy file `.env.example` menjadi `.env` dan isi dengan API Key Groq kamu:
-   ```bash
-   cp .env.example .env
-   ```
-   Lalu buka file `.env` dan ganti isinya:
-   ```text
-   GROQ_API_KEY=gsk_xxxx...
-   ```
-
-4. **Jalankan Bot**
+3. **Jalankan Bot**
    ```bash
    npm start
    ```
@@ -123,7 +106,7 @@ sudo apt install -y python-is-python3
    npm run dev
    ```
 
-5. **Scan QR Code**
+4. **Scan QR Code**
    Buka WhatsApp di ponsel Anda, pilih "Perangkat Tertaut" (Linked Devices), dan scan QR code yang muncul di terminal.
    
    > [!NOTE]
@@ -140,22 +123,16 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 | `.s` | Gambar → Sticker | - |
 | `.stext [Teks]` | Gambar → Sticker + Teks | - |
 | `.toimg` | (Reply Sticker) → Gambar | - |
-| `.ytmp3 [Link]` | Download Lagu YouTube | Max 16MB |
-| `.yt [Link]` | Download Video YouTube | Max 64MB |
-| `.fb [Link]` | Download Video Facebook | Max 64MB |
-| `.tt [Link]` | Download Video TikTok | Max 64MB |
-| `.ig [Link]` | Download Media Instagram | Max 64MB |
-| `.quote [Teks]` | Motivasi AI (Llama 3.3) | - |
-| `.itung [Soal]` | Kalkulator Matematika (support sin/cos/akar) | - |
-| `.tanya [Pertanyaan]` | Chat AI (Mode: V-Bot Smart) | - |
-| `.image [Prompt]` | Generate Image AI | - |
-| `.twitter` / `.x` | Download Video Twitter | - |
-| `.poll` | Buat Polling WhatsApp | - |
-| `.say [Teks]` | Google TTS (Auto-Detect Ar/Jp) | Max 200 char |
+| `.ytmp3 [Link]` | Download Audio YouTube (MP3) | Max 16MB |
+| `.yt [Link]` | Download Video YouTube (MP4) | Max 100MB |
+| `.fb [Link]` | Download Media Facebook (Video/Foto) | Max 100MB |
+| `.tt [Link]` | Download Media TikTok (Video/Foto) | Max 100MB |
+| `.ig [Link]` | Download Instagram (Video/Reels only) | Max 100MB |
+| `.twitter` / `.x [Link]` | Download Media Twitter/X (Video/Foto) | Max 100MB |
+| `.poll [Tanya],[Opsi]` | Buat Polling WhatsApp | - |
+| `.say [Teks]` | Text-to-Speech (Auto-Detect) | Max 200 char |
 | `.tr [Lang] [Teks]` | Translate AI (id, en, jp) | - |
-| `.quran [Surat] [Ayat]` | Baca Al-Quran (Arab/Lat/Indo) | - |
 | `.scan [File/URL/Hash]` | VirusTotal Malware Scanner | Max 32MB |
-| `.itung [Soal]` | Kalkulator Matematika (support sin/cos/akar) | - |
 
 > [!TIP]
 > **Fitur Balasan (Reply):** Kamu bisa membalas (reply) pesan yang berisi link atau teks dengan perintah `.yt`, `.tr`, `.say` dll. tanpa perlu mengetik ulang!
@@ -169,19 +146,14 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 │   ├── commands/           # Modul fungsionalitas utama
 │   │   ├── sticker.js     # Sticker tools (s, stext, toimg)
 │   │   ├── youtube.js     # YouTube downloader (yt, ytmp3)
-│   │   ├── twitter.js     # Twitter downloader
-│   │   ├── facebook.js    # Facebook downloader
-│   │   ├── tiktok.js      # TikTok downloader
-│   │   ├── instagram.js   # Instagram downloader
-│   │   ├── quote.js       # AI Quote generator
-│   │   ├── image.js       # AI Image generator
+│   │   ├── twitter.js     # Twitter/X media downloader (video & photo)
+│   │   ├── facebook.js    # Facebook media downloader (video & photo)
+│   │   ├── tiktok.js      # TikTok media downloader (video & photo)
+│   │   ├── instagram.js   # Instagram downloader (video/reels only)
 │   │   ├── poll.js        # WhatsApp Poll feature
-│   │   ├── tts.js         # Text-to-Speech (Google TTS)
+│   │   ├── tts.js         # Text-to-Speech (Auto-detect language)
 │   │   ├── translate.js   # AI Translator
-│   │   ├── scan.js        # VirusTotal Scanner
-│   │   ├── calc.js        # Calculator tool
-│   │   ├── ai.js          # AI Chat logic
-│   │   └── quran.js       # Fitur Al-Quran
+│   │   └── scan.js        # VirusTotal Scanner
 │   ├── utils/             # Helper & Logger utilities
 │   └── bot.js             # Logic utama WhatsApp Bot (Baileys)
 ├── auth_baileys/          # Session & authentication files (auto-generated)
@@ -195,17 +167,19 @@ Gunakan prefix `.` (titik) diikuti oleh perintah:
 
 ## ⚙️ Environment Variables
 
-Buat file `.env` di root project dengan konfigurasi berikut:
+File `.env` tidak diperlukan untuk fitur dasar. Jika ingin menggunakan fitur tambahan, buat file `.env` di root project:
 
 ```env
-# Groq API Key (Required untuk .quote & .tanya command)
-GROQ_API_KEY=your_groq_api_key_here
-
-# VirusTotal API Key (Required untuk .scan command)
+# VirusTotal API Key (Optional - untuk .scan command)
 VT_API_KEY=your_virustotal_api_key_here
+
+# Groq API Key (Optional - untuk .tr translate command)
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
-Dapatkan Groq API Key gratis di: [https://console.groq.com/keys](https://console.groq.com/keys)
+**Dapatkan API Key gratis:**
+- VirusTotal: [https://www.virustotal.com/gui/my-apikey](https://www.virustotal.com/gui/my-apikey)
+- Groq: [https://console.groq.com/keys](https://console.groq.com/keys)
 
 ---
 

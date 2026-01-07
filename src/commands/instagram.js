@@ -39,20 +39,17 @@ class InstagramDownloader {
             await helpers.reactProcessing(sock, msg);
             await helpers.replyWithTyping(sock, msg, '⏳ Mendownload dari Instagram...', 1500);
 
-            const outputTemplate = path.join(this.tempDir, `ig_media_${Date.now()}.%(ext)s`);
+            const timestamp = Date.now();
+            const outputTemplate = path.join(this.tempDir, `ig_media_${timestamp}.%(ext)s`);
 
-            try {
-                await ytdlpExec(url, {
-                    format: 'best',
-                    output: outputTemplate,
-                    noWarnings: true
-                });
-            } catch (dlError) {
-                logger.warn('yt-dlp error:', dlError.message);
-            }
+            await ytdlpExec(url, {
+                format: 'best',
+                output: outputTemplate,
+                noWarnings: true
+            });
 
             // Find downloaded file
-            const files = fs.readdirSync(this.tempDir).filter(f => f.startsWith(`ig_media_`));
+            const files = fs.readdirSync(this.tempDir).filter(f => f.startsWith(`ig_media_${timestamp}`));
             if (files.length === 0) {
                 throw new Error('Download gagal');
             }
@@ -87,7 +84,7 @@ class InstagramDownloader {
         } catch (error) {
             logger.error('Error:', error.message);
             await helpers.reactError(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '❌ Gagal mendownload dari Instagram!');
+            await helpers.replyWithTyping(sock, msg, '❌ Gagal mendownload dari Instagram!\n\n💡 Note: Instagram foto tidak didukung, hanya video/reels');
         } finally {
             this.cleanupTempFiles([tempFilePath]);
         }
