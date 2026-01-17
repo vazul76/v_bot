@@ -19,7 +19,7 @@ class YouTubeDownloader {
         let tempFilePath = null;
 
         try {
-            logger.info('Memproses command .ytmp3');
+            logger.info('Memproses command /ytmp3');
             await helpers.reactCommandReceived(sock, msg);
 
             const url = await this.extractURL(messageBody, msg);
@@ -27,7 +27,7 @@ class YouTubeDownloader {
             if (!url) {
                 logger.warn('URL tidak ditemukan');
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format:  .ytmp3 [link youtube]\n\n💡 Contoh:\n.ytmp3 https://www.youtube.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link YouTube dengan .ytmp3');
+                return helpers.replyWithTyping(sock, msg, '❌ Format: /ytmp3 [link youtube]\n\n💡 Contoh:\n/ytmp3 https://www.youtube.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link YouTube dengan /ytmp3');
             }
 
             if (! this.isValidYouTubeURL(url)) {
@@ -108,7 +108,7 @@ class YouTubeDownloader {
             if (! url) {
                 logger.warn('URL tidak ditemukan');
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format:  .yt [link youtube]\n\n💡 Contoh:\n.yt https://www.youtube.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link YouTube dengan .yt');
+                return helpers.replyWithTyping(sock, msg, '❌ Format: /yt [link youtube]\n\n💡 Contoh:\n/yt https://www.youtube.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link YouTube dengan /yt');
             }
 
             if (!this.isValidYouTubeURL(url)) {
@@ -150,7 +150,7 @@ class YouTubeDownloader {
             if (stats.size > this.maxVideoSize) {
                 logger.warn('File terlalu besar');
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, `❌ Video terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)\n\n⚠️ Limit: 100MB\n\n💡 Coba video lebih pendek atau gunakan .ytmp3`);
+                return helpers.replyWithTyping(sock, msg, `❌ Video terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)\n\n⚠️ Limit: 100MB\n\n💡 Coba video lebih pendek atau gunakan /ytmp3`);
             }
 
             const videoBuffer = fs.readFileSync(tempFilePath);
@@ -180,7 +180,7 @@ class YouTubeDownloader {
     }
 
     async extractURL(messageBody, msg) {
-        const text = messageBody.replace(/^\.(ytmp3|yt)\s+/i, '').trim();
+        const text = messageBody.replace(/^[\.\/](ytmp3|yt)\s+/i, '').trim();
         const urlRegex = /(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/gi;
         let matches = text.match(urlRegex);
 

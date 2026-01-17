@@ -18,7 +18,7 @@ class TwitterDownloader {
         let tempFilePath = null;
 
         try {
-            logger.info('Memproses command .twitter');
+            logger.info('Memproses command /twitter');
 
             await helpers.reactCommandReceived(sock, msg);
 
@@ -26,7 +26,7 @@ class TwitterDownloader {
 
             if (!url) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format: .x [link] atau .twitter [link]\n\n💡 Contoh:\n.x https://x.com/user/status/123456789');
+                return helpers.replyWithTyping(sock, msg, '❌ Format: /x [link] atau /twitter [link]\n\n💡 Contoh:\n/x https://x.com/user/status/123456789');
             }
 
             if (!this.isValidTwitterURL(url)) {
@@ -92,7 +92,7 @@ class TwitterDownloader {
     }
 
     async extractURL(messageBody, msg) {
-        const text = messageBody.replace(/^\.(x|twitter)\s+/i, '').trim();
+        const text = messageBody.replace(/^[\.\/](x|twitter)\s+/i, '').trim();
         const urlRegex = /(https?:\/\/)?(www\.)?(twitter\.com|x\.com)\/[^\s]+/gi;
         let matches = text.match(urlRegex);
 

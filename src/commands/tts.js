@@ -9,7 +9,7 @@ class TTSCommand {
 
             await helpers.reactCommandReceived(sock, msg);
 
-            let text = messageBody.replace(/^\.say\s*/i, '').trim();
+            let text = messageBody.replace(/^[\.\/]say\s*/i, '').trim();
 
             // Jika tidak ada text, cek quoted message
             if (!text) {
@@ -22,7 +22,7 @@ class TTSCommand {
 
             if (!text) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Masukkan teks atau reply pesan!\n\nContoh:\n.say Halo dunia');
+                return helpers.replyWithTyping(sock, msg, '❌ Masukkan teks atau reply pesan!\n\nContoh:\n/say Halo dunia');
             }
 
             if (text.length > 200) {

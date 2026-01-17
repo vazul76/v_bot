@@ -1,13 +1,15 @@
 # 🤖 V-Ultimate-Bot
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/vazul76/v_bot)
+[![Version](https://img.shields.io/badge/version-2.3.2-blue.svg)](https://github.com/vazul76/v_bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D%2018.x-green.svg)](https://nodejs.org/)
 [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-brightgreen.svg)](https://github.com/WhiskeySockets/Baileys)
 
 **V-Ultimate-Bot** adalah WhatsApp Bot Utility yang dibangun dengan **@whiskeysockets/baileys**. Bot ini menggabungkan berbagai fitur canggih mulai dari Sticker Tools, Social Media Downloader (YT, FB, TikTok, IG, Twitter/X), hingga berbagai utility tools.
 
-> **🔄 Update v2.0.0**: Bot telah bermigrasi dari `whatsapp-web.js` ke `@whiskeysockets/baileys` untuk performa yang lebih baik dan konsumsi resource yang lebih ringan (tidak memerlukan Chromium/browser).
+> **🔄 Update v2.3.2**: 
+> - ✅ Prefix diubah dari `.` menjadi `/` untuk semua command
+> - ✅ Weather feature dengan BMKG API (gratis, no API key)
 
 ---
 
@@ -22,12 +24,13 @@
 - **YouTube Downloader**: Download video (MP4) atau audio (MP3) dengan kualitas terbaik.
 - **Twitter/X Downloader**: Download video dan foto dari Twitter/X.
 - **Instagram Downloader**: Download video dan Reels Instagram (foto belum support).
-- **TikTok Downloader**: Download video dan foto TikTok.
+- **TikTok Downloader**: Download video dan foto/slideshow TikTok (tanpa watermark, auto-detect format).
 - **Facebook Downloader**: Download video dan foto dari Facebook.
 
 ### 🗣️ Utility & Fun
 - **Text-to-Speech (TTS)**: Ubah teks jadi suara Google dengan deteksi bahasa otomatis (Indo, Arab, Jepang).
 - **Translate AI (Groq)**: Terjemahkan teks ke berbagai bahasa (Indo, Inggris, Jepang) dengan AI yang natural.
+- **Weather Info (BMKG)**: Cek prakiraan cuaca real-time untuk wilayah DI Yogyakarta dengan data resmi BMKG.
 - **WhatsApp Poll**: Buat voting/polling langsung di grup WhatsApp.
 - **VirusTotal Scan**: Scan file, URL, atau hash untuk mendeteksi malware menggunakan API VirusTotal.
 
@@ -42,6 +45,8 @@
 
 - **[@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys)** - WhatsApp Web API
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - YouTube & Social Media Downloader
+- **[@tobyg74/tiktok-api-dl](https://www.npmjs.com/package/@tobyg74/tiktok-api-dl)** - TikTok Downloader API
+- **[BMKG API](https://api.bmkg.go.id/)** - DI Yogyakarta Weather Data (Free, No API Key)
 - **[Groq SDK](https://groq.com/)** - AI Translation (Llama 3.3)
 - **[wa-sticker-formatter](https://github.com/AlenSaito1/wa-sticker-formatter)** - Sticker Creator
 - **[canvas](https://github.com/Automattic/node-canvas)** - Image Processing
@@ -116,26 +121,27 @@ sudo apt install -y python-is-python3
 
 ## 🕹️ Cara Penggunaan
 
-Gunakan prefix `.` (titik) diikuti oleh perintah:
+Gunakan prefix `/` (slash) diikuti oleh perintah:
 
 | Perintah | Deskripsi | Batasan |
 | :--- | :--- | :--- |
-| `.s` | Gambar → Sticker | - |
-| `.stext [Teks]` | Gambar → Sticker + Teks | - |
-| `.toimg` | (Reply Sticker) → Gambar | - |
-| `.ytmp3 [Link]` | Download Audio YouTube (MP3) | Max 16MB |
-| `.yt [Link]` | Download Video YouTube (MP4) | Max 100MB |
-| `.fb [Link]` | Download Media Facebook (Video/Foto) | Max 100MB |
-| `.tt [Link]` | Download Media TikTok (Video/Foto) | Max 100MB |
-| `.ig [Link]` | Download Instagram (Video/Reels only) | Max 100MB |
-| `.twitter` / `.x [Link]` | Download Media Twitter/X (Video/Foto) | Max 100MB |
-| `.poll [Tanya],[Opsi]` | Buat Polling WhatsApp | - |
-| `.say [Teks]` | Text-to-Speech (Auto-Detect) | Max 200 char |
-| `.tr [Lang] [Teks]` | Translate AI (id, en, jp) | - |
-| `.scan [File/URL/Hash]` | VirusTotal Malware Scanner | Max 32MB |
+| `/s` | Gambar → Sticker | - |
+| `/stext [Teks]` | Gambar → Sticker + Teks | - |
+| `/toimg` | (Reply Sticker) → Gambar | - |
+| `/ytmp3 [Link]` | Download Audio YouTube (MP3) | Max 16MB |
+| `/yt [Link]` | Download Video YouTube (MP4) | Max 100MB |
+| `/fb [Link]` | Download Media Facebook (Video/Foto) | Max 100MB |
+| `/tt [Link]` | Download Media TikTok (Video/Foto) | Max 100MB |
+| `/ig [Link]` | Download Instagram (Video/Reels only) | Max 100MB |
+| `/twitter` / `/x [Link]` | Download Media Twitter/X (Video/Foto) | Max 100MB |
+| `/cuaca [Lokasi]` | Cek Cuaca BMKG (DI Yogyakarta) | 516 lokasi |
+| `/poll [Tanya],[Opsi]` | Buat Polling WhatsApp | - |
+| `/say [Teks]` | Text-to-Speech (Auto-Detect) | Max 200 char |
+| `/tr [Lang] [Teks]` | Translate AI (id, en, jp) | - |
+| `/scan [File/URL/Hash]` | VirusTotal Malware Scanner | Max 32MB |
 
 > [!TIP]
-> **Fitur Balasan (Reply):** Kamu bisa membalas (reply) pesan yang berisi link atau teks dengan perintah `.yt`, `.tr`, `.say` dll. tanpa perlu mengetik ulang!
+> **Fitur Balasan (Reply):** Kamu bisa membalas (reply) pesan yang berisi link atau teks dengan perintah `/yt`, `/tr`, `/say` dll. tanpa perlu mengetik ulang!
 
 ---
 

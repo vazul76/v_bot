@@ -18,7 +18,7 @@ class InstagramDownloader {
         let tempFilePath = null;
 
         try {
-            logger.info('Memproses command .ig');
+            logger.info('Memproses command /ig');
 
             await helpers.reactCommandReceived(sock, msg);
 
@@ -26,7 +26,7 @@ class InstagramDownloader {
 
             if (!url) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format: .ig [link instagram]\n\n💡 Contoh:\n.ig https://www.instagram.com/p/xxxxx');
+                return helpers.replyWithTyping(sock, msg, '❌ Format: /ig [link instagram]\n\n💡 Contoh:\n/ig https://www.instagram.com/p/xxxxx');
             }
 
             if (!this.isValidInstagramURL(url)) {
@@ -91,7 +91,7 @@ class InstagramDownloader {
     }
 
     async extractURL(messageBody, msg) {
-        const text = messageBody.replace(/^\.ig\s+/i, '').trim();
+        const text = messageBody.replace(/^[\.\/]ig\s+/i, '').trim();
         const urlRegex = /(https?:\/\/)?(www\.)?(instagram\.com|instagr\.am)\/[^\s]+/gi;
         let matches = text.match(urlRegex);
 

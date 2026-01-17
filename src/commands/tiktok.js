@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const ytdlpExec = require('yt-dlp-exec');
+const axios = require('axios');
+const { Downloader } = require('@tobyg74/tiktok-api-dl');
 const logger = require('../utils/logger');
 const helpers = require('../utils/helpers');
 
@@ -18,7 +19,7 @@ class TikTokDownloader {
         let tempFilePath = null;
 
         try {
-            logger.info('Memproses command .tiktok');
+            logger.info('Memproses command /tiktok');
 
             await helpers.reactCommandReceived(sock, msg);
 
@@ -26,7 +27,7 @@ class TikTokDownloader {
 
             if (!url) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format: .tiktok [link] atau .tt [link]\n\n💡 Contoh:\n.tt https://vt.tiktok.com/xxxxx');
+                return helpers.replyWithTyping(sock, msg, '❌ Format: /tiktok [link] atau /tt [link]\n\n💡 Contoh:\n/tt https://vt.tiktok.com/xxxxx');
             }
 
             if (!this.isValidTikTokURL(url)) {
@@ -39,25 +40,47 @@ class TikTokDownloader {
             await helpers.reactProcessing(sock, msg);
             await helpers.replyWithTyping(sock, msg, '⏳ Mendownload dari TikTok...', 1500);
 
-            const outputTemplate = path.join(this.tempDir, `tiktok_media_${Date.now()}.%(ext)s`);
+            // Use TikTok downloader API
+            const tiktokData = await Downloader(url, { version: 'v1' });
 
-            try {
-                await ytdlpExec(url, {
-                    format: 'best',
-                    output: outputTemplate,
-                    noWarnings: true
-                });
-            } catch (dlError) {
-                logger.warn('yt-dlp error:', dlError.message);
+            if (!tiktokData || tiktokData.status !== 'success' || !tiktokData.result) {
+                throw new Error('Tidak dapat mengambil data dari TikTok - video mungkin private atau dihapus');
             }
 
-            // Find downloaded file
-            const files = fs.readdirSync(this.tempDir).filter(f => f.startsWith(`tiktok_media_`));
-            if (files.length === 0) {
-                throw new Error('Download gagal');
+            const result = tiktokData.result;
+            const timestamp = Date.now();
+            let mediaBuffer;
+            let isVideo = true;
+
+            // Get video URL (prefer no watermark)
+            let videoUrl;
+            if (result.type === 'video') {
+                videoUrl = result.video?.playAddr?.[0] || result.video?.downloadAddr?.[0];
+                if (!videoUrl) {
+                    throw new Error('URL video tidak ditemukan');
+                }
+            } else if (result.type === 'image' && result.images?.length > 0) {
+                // TikTok slideshow/image
+                videoUrl = result.images[0];
+                isVideo = false;
+            } else {
+                throw new Error('Format media tidak didukung');
             }
 
-            tempFilePath = path.join(this.tempDir, files[files.length - 1]);
+            // Download media
+            const response = await axios.get(videoUrl, { 
+                responseType: 'arraybuffer',
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Referer': 'https://www.tiktok.com/'
+                },
+                timeout: 60000
+            });
+            
+            mediaBuffer = Buffer.from(response.data);
+            const ext = isVideo ? 'mp4' : 'jpg';
+            tempFilePath = path.join(this.tempDir, `tiktok_${isVideo ? 'video' : 'image'}_${timestamp}.${ext}`);
+            fs.writeFileSync(tempFilePath, mediaBuffer);
 
             const stats = fs.statSync(tempFilePath);
             logger.info(`Media size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
@@ -67,13 +90,10 @@ class TikTokDownloader {
                 return helpers.replyWithTyping(sock, msg, `❌ Media terlalu besar! (${(stats.size / 1024 / 1024).toFixed(2)}MB)`);
             }
 
-            const mediaBuffer = fs.readFileSync(tempFilePath);
-            const ext = path.extname(tempFilePath).toLowerCase();
-
             logger.info('Mengirim media...');
             await helpers.simulateTyping(sock, msg, 1500);
             
-            if (ext === '.mp4') {
+            if (isVideo) {
                 await helpers.replyVideoWithTyping(sock, msg, mediaBuffer);
             } else {
                 await helpers.replyImageWithTyping(sock, msg, mediaBuffer);
@@ -92,7 +112,7 @@ class TikTokDownloader {
     }
 
     async extractURL(messageBody, msg) {
-        const text = messageBody.replace(/^\.(tiktok|tt)\s+/i, '').trim();
+        const text = messageBody.replace(/^[\.\/](tiktok|tt)\s+/i, '').trim();
         const urlRegex = /(https?:\/\/)?(www\.)?(tiktok\.com|vt\.tiktok\.com|vm\.tiktok\.com)\/[^\s]+/gi;
         let matches = text.match(urlRegex);
 

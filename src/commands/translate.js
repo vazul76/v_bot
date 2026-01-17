@@ -34,7 +34,7 @@ class TranslateCommand {
 
             if (!targetLangCode || !this.langMap[targetLangCode]) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format salah atau bahasa tidak didukung!\n\nBahasa tersedia:\n- id (Indonesia)\n- en (Inggris)\n- jp (Jepang)\n\nContoh:\n.tr id (sambil reply pesan)\n.tr en Selamat pagi');
+                return helpers.replyWithTyping(sock, msg, '❌ Format salah atau bahasa tidak didukung!\n\nBahasa tersedia:\n- id (Indonesia)\n- en (Inggris)\n- jp (Jepang)\n\nContoh:\n/tr id (sambil reply pesan)\n/tr en Selamat pagi');
             }
 
             const targetLangName = this.langMap[targetLangCode];

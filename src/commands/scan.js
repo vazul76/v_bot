@@ -41,10 +41,10 @@ class ScanCommand {
                 return await this.scanByHash(query, msg, sock);
             }
 
-            await helpers.replyWithTyping(sock, msg, '❌ Gunakan .scan dengan lampiran file / reply media, URL, atau hash (md5/sha1/sha256).');
+            await helpers.replyWithTyping(sock, msg, '❌ Gunakan /scan dengan lampiran file / reply media, URL, atau hash (md5/sha1/sha256).');
             await helpers.reactError(sock, msg);
         } catch (error) {
-            logger.error('Error in .scan:', error);
+            logger.error('Error in /scan:', error);
             await helpers.reactError(sock, msg);
             await helpers.replyWithTyping(sock, msg, '❌ Gagal menjalankan scan.Coba lagi nanti.');
         }

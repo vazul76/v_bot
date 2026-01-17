@@ -15,6 +15,7 @@ const pollCommand = require('./commands/poll');
 const ttsCommand = require('./commands/tts');
 const translateCommand = require('./commands/translate');
 const scanCommand = require('./commands/scan');
+const weatherCommand = require('./commands/weather');
 
 class WABot {
     constructor() {
@@ -174,26 +175,26 @@ class WABot {
                     await youtubeCommand.downloadVideo(msg, this.sock, body);
                     break;
                 case 'fb':
-                    logger.info('Menjalankan command .fb');
+                    logger.info('Menjalankan command /fb');
                     await facebookCommand.downloadMedia(msg, this.sock, body);
                     break;
                 case 'tiktok':
                 case 'tt':
-                    logger.info('Menjalankan command .tiktok');
+                    logger.info('Menjalankan command /tiktok');
                     await tiktokCommand.downloadMedia(msg, this.sock, body);
                     break;
                 case 'ig':
-                    logger.info('Menjalankan command .ig');
+                    logger.info('Menjalankan command /ig');
                     await instagramCommand.downloadMedia(msg, this.sock, body);
                     break;
                 case 'twitter':
                 case 'x':
-                    logger.info('Menjalankan command .twitter');
+                    logger.info('Menjalankan command /twitter');
                     await twitterCommand.downloadMedia(msg, this.sock, body);
                     break;
                 case 'poll':
                 case 'pool':
-                    logger.info('Menjalankan command .poll');
+                    logger.info('Menjalankan command /poll');
                     await pollCommand.createPoll(msg, this.sock, body);
                     break;
                 case 'say':
@@ -205,8 +206,13 @@ class WABot {
                     await translateCommand.translate(msg, this.sock, body);
                     break;
                 case 'scan':
-                    logger.info('Menjalankan command .scan');
+                    logger.info('Menjalankan command /scan');
                     await scanCommand.handle(msg, this.sock, body);
+                    break;
+                case 'cuaca':
+                case 'weather':
+                    logger.info('Menjalankan command /cuaca');
+                    await weatherCommand.execute(msg, this.sock, body);
                     break;
                 case 'menu':
                     logger.info('Menjalankan command help');
@@ -266,32 +272,35 @@ class WABot {
         const helpText = `*🗿 V-ULTIMATE BOT v2.0*
 
 *📌 STICKER TOOLS*
-├ \`.s\` - Gambar/Video → Sticker
+├ \`/s\` - Gambar/Video → Sticker
 │   ├ Gambar → Static sticker
 │   └ Video/GIF → Animated sticker 🎬
-├ \`.stext [teks]\` - Gambar → Sticker + Teks
-└ \`.toimg\` - Sticker → Gambar/Video
+├ \`/stext [teks]\` - Gambar → Sticker + Teks
+└ \`/toimg\` - Sticker → Gambar/Video
 
 *📥 DOWNLOADER*
-├ \`.ytmp3 [link]\` - YouTube → MP3 (16MB max)
-├ \`.yt [link]\` - YouTube → Video (100MB max) 🎬
-├ \`.fb [link]\` - Facebook Video/Photo
-├ \`.tt [link]\` - TikTok Video
-├ \`.ig [link]\` - Instagram Video/Photo
-└ \`.x [link]\` - Twitter/X Video/Photo
+├ \`/ytmp3 [link]\` - YouTube → MP3 (16MB max)
+├ \`/yt [link]\` - YouTube → Video (100MB max) 🎬
+├ \`/fb [link]\` - Facebook Video/Photo
+├ \`/tt [link]\` - TikTok Video
+├ \`/ig [link]\` - Instagram Video/Photo
+└ \`/x [link]\` - Twitter/X Video/Photo
 
 *🛡️ SECURITY*
-└ \`.scan [file/url/hash]\` - Scan via VirusTotal
+└ \`/scan [file/url/hash]\` - Scan via VirusTotal
 
 *📊 GROUP TOOLS*
-└ \`.poll [tanya],[opsi1],[opsi2]\` - Buat Polling
+└ \`/poll [tanya],[opsi1],[opsi2]\` - Buat Polling
 
 *🗣️ TTS*
-└ \`.say [teks]\` - Text to Speech (Auto-detect)
+└ \`/say [teks]\` - Text to Speech (Auto-detect)
 
 *🌐 TRANSLATE (AI)*
-└ \`.tr [lang] [teks]\` - Translate pintar
+└ \`/tr [lang] [teks]\` - Translate pintar
 👉 Lang: id, en, jp
+
+*🌤️ WEATHER*
+└ \`/cuaca [tempat (kelurahan)]\` - Cek Cuaca D I Yogyakarta
 
 *💡 TIPS: *
 • Bisa reply pesan yang ada link!

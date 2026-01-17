@@ -18,7 +18,7 @@ class FacebookDownloader {
         let tempFilePath = null;
 
         try {
-            logger.info('Memproses command .fb');
+            logger.info('Memproses command /fb');
 
             await helpers.reactCommandReceived(sock, msg);
 
@@ -27,7 +27,7 @@ class FacebookDownloader {
             if (!url) {
                 logger.warn('URL tidak ditemukan');
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format: .fb [link facebook]\n\n💡 Contoh:\n.fb https://www.facebook.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link Facebook');
+                return helpers.replyWithTyping(sock, msg, '❌ Format: /fb [link facebook]\n\n💡 Contoh:\n/fb https://www.facebook.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link Facebook');
             }
 
             if (!this.isValidFacebookURL(url)) {
@@ -94,7 +94,7 @@ class FacebookDownloader {
     }
 
     async extractURL(messageBody, msg) {
-        const text = messageBody.replace(/^\.fb\s+/i, '').trim();
+        const text = messageBody.replace(/^[\.\/]fb\s+/i, '').trim();
         const urlRegex = /(https?:\/\/)?(www\.)?(facebook\.com|fb\.watch|fb\.com)\/[^\s]+/gi;
         let matches = text.match(urlRegex);
 

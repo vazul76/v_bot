@@ -83,7 +83,7 @@ class StickerCommand {
 
             if (!text) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format:  . stext teks yang ingin ditambahkan\n\nContoh: .stext Hello World');
+                return helpers.replyWithTyping(sock, msg, '❌ Format: /stext teks yang ingin ditambahkan\n\nContoh: /stext Hello World');
             }
 
             const media = await this.getMediaFromMessage(msg, sock);
@@ -98,7 +98,7 @@ class StickerCommand {
             if (messageType === 'video') {
                 logger.warn('Media adalah video');
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ . stext hanya mendukung gambar!\n\n💡 Untuk video, gunakan .s tanpa text');
+                return helpers.replyWithTyping(sock, msg, '❌ /stext hanya mendukung gambar!\n\n💡 Untuk video, gunakan /s tanpa text');
             }
 
             await helpers. reactProcessing(sock, msg);
