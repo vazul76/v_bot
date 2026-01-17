@@ -10,6 +10,7 @@ class WeatherCommand {
         this.baseUrl = 'https://api.bmkg.go.id/publik/prakiraan-cuaca';
         this.cityCodesCache = {};
         this.wilayahData = null;
+        this.searchedAsKecamatan = false; // Track if user searched for kecamatan
     }
 
     async execute(msg, sock, messageBody) {
@@ -29,6 +30,9 @@ class WeatherCommand {
             await helpers.reactProcessing(sock, msg);
             await helpers.replyWithTyping(sock, msg, '⏳ Mengambil data cuaca dari BMKG...', 1500);
 
+            // Reset flag
+            this.searchedAsKecamatan = false;
+
             // Find location code
             const locationCode = await this.findLocationCode(location);
             
@@ -44,7 +48,7 @@ class WeatherCommand {
             }
 
             // Format response
-            const response = this.formatWeatherResponse(weatherData);
+            const response = this.formatWeatherResponse(weatherData, this.searchedAsKecamatan);
 
             await helpers.reactSuccess(sock, msg);
             await helpers.replyWithTyping(sock, msg, response, 2000);
@@ -117,6 +121,19 @@ class WeatherCommand {
         // Direct exact match
         let match = wilayahList.find(w => w.nama === locationLower);
         if (match) {
+            // If kecamatan found, get first kelurahan under it
+            if (match.level === 'kecamatan') {
+                this.searchedAsKecamatan = true; // Mark as kecamatan search
+                const kecamatanCode = match.kode;
+                const kelurahan = wilayahList.find(w => 
+                    w.level === 'kelurahan' && 
+                    w.kode.startsWith(kecamatanCode + '.')
+                );
+                if (kelurahan) {
+                    this.cityCodesCache[locationLower] = kelurahan.kode;
+                    return kelurahan.kode;
+                }
+            }
             this.cityCodesCache[locationLower] = match.kode;
             return match.kode;
         }
@@ -124,6 +141,19 @@ class WeatherCommand {
         // Fuzzy match - starts with
         match = wilayahList.find(w => w.nama.startsWith(locationLower));
         if (match) {
+            // If kecamatan found, get first kelurahan under it
+            if (match.level === 'kecamatan') {
+                this.searchedAsKecamatan = true; // Mark as kecamatan search
+                const kecamatanCode = match.kode;
+                const kelurahan = wilayahList.find(w => 
+                    w.level === 'kelurahan' && 
+                    w.kode.startsWith(kecamatanCode + '.')
+                );
+                if (kelurahan) {
+                    this.cityCodesCache[locationLower] = kelurahan.kode;
+                    return kelurahan.kode;
+                }
+            }
             this.cityCodesCache[locationLower] = match.kode;
             return match.kode;
         }
@@ -131,6 +161,19 @@ class WeatherCommand {
         // Fuzzy match - contains
         match = wilayahList.find(w => w.nama.includes(locationLower));
         if (match) {
+            // If kecamatan found, get first kelurahan under it
+            if (match.level === 'kecamatan') {
+                this.searchedAsKecamatan = true; // Mark as kecamatan search
+                const kecamatanCode = match.kode;
+                const kelurahan = wilayahList.find(w => 
+                    w.level === 'kelurahan' && 
+                    w.kode.startsWith(kecamatanCode + '.')
+                );
+                if (kelurahan) {
+                    this.cityCodesCache[locationLower] = kelurahan.kode;
+                    return kelurahan.kode;
+                }
+            }
             this.cityCodesCache[locationLower] = match.kode;
             return match.kode;
         }
@@ -144,12 +187,19 @@ class WeatherCommand {
         return response.data;
     }
 
-    formatWeatherResponse(data) {
+    formatWeatherResponse(data, isKecamatanSearch = false) {
         const lokasi = data.lokasi;
         const cuacaData = data.data[0].cuaca;
 
-        // Location info
-        const locationName = `${lokasi.desa || lokasi.kecamatan}, Kec. ${lokasi.kecamatan}, ${lokasi.kotkab}`;
+        // Location info - conditional format based on search type
+        let locationName;
+        if (isKecamatanSearch) {
+            // User searched for kecamatan: show only "Kec. [Kecamatan], Kab. [Kabupaten]"
+            locationName = `Kec. ${lokasi.kecamatan}, ${lokasi.kotkab}`;
+        } else {
+            // User searched for kelurahan: show "[Kelurahan], Kec. [Kecamatan], Kab. [Kabupaten]"
+            locationName = `${lokasi.desa}, Kec. ${lokasi.kecamatan}, ${lokasi.kotkab}`;
+        }
         
         // Get current time
         const now = new Date();
