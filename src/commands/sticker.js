@@ -14,13 +14,13 @@ class StickerCommand {
         this.tempDir = path.join(__dirname, '../../temp');
 
         if (!fs.existsSync(this.tempDir)) {
-            fs.mkdirSync(this. tempDir, { recursive: true });
+            fs.mkdirSync(this.tempDir, { recursive: true });
         }
     }
 
     async createSticker(msg, sock) {
         try {
-            logger.info('Memproses command . s');
+            logger.info('Memproses command .s');
             await helpers.reactCommandReceived(sock, msg);
 
             const media = await this.getMediaFromMessage(msg, sock);
@@ -41,31 +41,31 @@ class StickerCommand {
             if (isVideo) {
                 await helpers.replyWithTyping(sock, msg, '⏳ Membuat animated sticker dari video...\n🎬 Tunggu sebentar ya! ', 1000);
             } else {
-                await helpers. replyWithTyping(sock, msg, '⏳ Membuat sticker... ', 1000);
+                await helpers.replyWithTyping(sock, msg, '⏳ Membuat sticker... ', 1000);
             }
 
-            logger.info('Membuat sticker dengan wa-sticker-formatter.. .');
+            logger.info('Membuat sticker dengan wa-sticker-formatter...');
             const sticker = new Sticker(media, {
                 pack: this.packName,
                 author: this.authorName,
-                type: StickerTypes. FULL,
+                type: StickerTypes.FULL,
                 quality: 50,
                 animated: isVideo
             });
 
             logger.info('Convert ke buffer WebP...');
-            const stickerBuffer = await sticker. toBuffer();
+            const stickerBuffer = await sticker.toBuffer();
 
             logger.info('Mengirim sebagai sticker...');
-            
+
             // ✅ REPLY KE USER
             await helpers.replyStickerWithTyping(sock, msg, stickerBuffer, 1500);
 
             await helpers.reactSuccess(sock, msg);
-            logger.success(`${isVideo ? 'Animated sticker' : 'Sticker'} berhasil dikirim! `);
+            logger.success(`${isVideo ? 'Animated sticker' : 'Sticker'} berhasil dikirim!`);
 
         } catch (error) {
-            logger.error('Error creating sticker:', error. message);
+            logger.error('Error creating sticker:', error.message);
             logger.error('Stack trace:', error.stack);
 
             await helpers.reactError(sock, msg);
@@ -78,20 +78,28 @@ class StickerCommand {
             logger.info('Memproses command .stext');
             await helpers.reactCommandReceived(sock, msg);
 
-            const text = fullCommand.slice(6).trim();
+            // Extract text after the command
+            const commandMatch = fullCommand.match(/^\S+\s+(.+)/s);
+            let text = commandMatch ? commandMatch[1].trim() : '';
             logger.info(`Teks yang diambil: "${text}"`);
 
             if (!text) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Format: /stext teks yang ingin ditambahkan\n\nContoh: /stext Hello World');
+                return helpers.replyWithTyping(sock, msg, `❌ Format: ${fullCommand.split(' ')[0]} teks yang ingin ditambahkan\n\nContoh: ${fullCommand.split(' ')[0]} Hello World`);
+            }
+
+            // Character limit for single line
+            if (text.length > 40) {
+                await helpers.reactError(sock, msg);
+                return helpers.replyWithTyping(sock, msg, '❌ Karakter terlalu panjang! Maksimal 40 karakter agar teks tetap terbaca.');
             }
 
             const media = await this.getMediaFromMessage(msg, sock);
 
-            if (! media) {
+            if (!media) {
                 logger.warn('Tidak ada media ditemukan');
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Kirim gambar atau reply gambar dengan command .stext\n\n⚠️ Text overlay hanya support untuk gambar! ');
+                return helpers.replyWithTyping(sock, msg, '❌ Kirim gambar atau reply gambar dengan command .stext\n\n⚠️ Text overlay hanya support untuk gambar!');
             }
 
             const messageType = this.getMediaType(msg);
@@ -101,8 +109,8 @@ class StickerCommand {
                 return helpers.replyWithTyping(sock, msg, '❌ /stext hanya mendukung gambar!\n\n💡 Untuk video, gunakan /s tanpa text');
             }
 
-            await helpers. reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Membuat sticker dengan teks... ', 1000);
+            await helpers.reactProcessing(sock, msg);
+            await helpers.replyWithTyping(sock, msg, '⏳ Membuat sticker dengan teks...', 1000);
 
             logger.info('Menambahkan teks ke gambar...');
             const imageBuffer = await this.addTextToImage(media, text);
@@ -119,7 +127,7 @@ class StickerCommand {
             const webpBuffer = await sticker.toBuffer();
 
             logger.info('Mengirim sebagai sticker...');
-            
+
             // ✅ REPLY KE USER
             await helpers.replyStickerWithTyping(sock, msg, webpBuffer, 1500);
 
@@ -131,7 +139,7 @@ class StickerCommand {
             logger.error('Stack trace:', error.stack);
 
             await helpers.reactError(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '❌ Gagal membuat sticker dengan teks! ');
+            await helpers.replyWithTyping(sock, msg, '❌ Gagal membuat sticker dengan teks!');
         }
     }
 
@@ -142,24 +150,24 @@ class StickerCommand {
 
             const quoted = await helpers.getQuotedMessage(msg);
 
-            if (!quoted || !quoted.message?. stickerMessage) {
+            if (!quoted || !quoted.message?.stickerMessage) {
                 logger.warn('Tidak ada sticker di quoted message');
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Reply sticker dengan command .toimg untuk mengubah sticker menjadi gambar! ');
+                return helpers.replyWithTyping(sock, msg, '❌ Reply sticker dengan command .toimg untuk mengubah sticker menjadi gambar!');
             }
 
             logger.info('Sticker ditemukan, downloading...');
 
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Mengubah sticker menjadi gambar... ', 1000);
+            await helpers.replyWithTyping(sock, msg, '⏳ Mengubah sticker menjadi gambar...', 1000);
 
             const buffer = await downloadMediaMessage(
-                { key: msg.key, message: { ... quoted.message } },
+                { key: msg.key, message: { ...quoted.message } },
                 'buffer',
                 {}
             );
 
-            if (! buffer) {
+            if (!buffer) {
                 throw new Error('Gagal download sticker');
             }
 
@@ -169,32 +177,32 @@ class StickerCommand {
 
             if (isAnimated) {
                 logger.info('Sending animated sticker as webp...');
-                
+
                 // ✅ REPLY KE USER
-                await helpers. replyDocumentWithTyping(sock, msg, buffer, 'sticker-animated. webp', 'image/webp', '✅ Animated sticker converted', 1500);
+                await helpers.replyDocumentWithTyping(sock, msg, buffer, 'sticker-animated.webp', 'image/webp', '✅ Animated sticker converted', 1500);
 
             } else {
                 logger.info('Converting to PNG...');
                 const pngBuffer = await sharp(buffer)
                     .trim({
-                        background: { r: 255, g: 255, b:  255, alpha: 0 },
+                        background: { r: 255, g: 255, b: 255, alpha: 0 },
                         threshold: 10
                     })
                     .png()
                     .toBuffer();
 
                 logger.info('Mengirim sebagai gambar...');
-                
+
                 // ✅ REPLY KE USER
                 await helpers.replyImageWithTyping(sock, msg, pngBuffer, '✅ Sticker converted to image', 1500);
             }
 
             await helpers.reactSuccess(sock, msg);
-            logger.success('Sticker berhasil diubah! ');
+            logger.success('Sticker berhasil diubah!');
 
         } catch (error) {
             logger.error('Error converting sticker:', error.message);
-            logger. error('Stack trace:', error.stack);
+            logger.error('Stack trace:', error.stack);
 
             await helpers.reactError(sock, msg);
             await helpers.replyWithTyping(sock, msg, '❌ Gagal mengubah sticker!');
@@ -204,9 +212,9 @@ class StickerCommand {
     async getMediaFromMessage(msg, sock) {
         try {
             const message = msg.message;
-            
+
             if (message?.imageMessage || message?.videoMessage) {
-                logger.info('Downloading media from message.. .');
+                logger.info('Downloading media from message...');
                 return await downloadMediaMessage(msg, 'buffer', {});
             }
 
@@ -230,14 +238,14 @@ class StickerCommand {
 
     getMediaType(msg) {
         const message = msg.message;
-        
+
         if (message?.imageMessage) return 'image';
         if (message?.videoMessage) return 'video';
-        
-        const quoted = message?.extendedTextMessage?.contextInfo?. quotedMessage;
-        if (quoted?. imageMessage) return 'image';
+
+        const quoted = message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        if (quoted?.imageMessage) return 'image';
         if (quoted?.videoMessage) return 'video';
-        
+
         return 'unknown';
     }
 
@@ -255,67 +263,55 @@ class StickerCommand {
         const image = await Canvas.loadImage(imageData);
 
         const canvasSize = 512;
-        const canvas = Canvas. createCanvas(canvasSize, canvasSize);
+        const canvas = Canvas.createCanvas(canvasSize, canvasSize);
         const ctx = canvas.getContext('2d');
 
+        // Draw original image scaled to fit
         ctx.clearRect(0, 0, canvasSize, canvasSize);
-
-        const scale = Math.min(
-            canvasSize / image.width,
-            canvasSize / image.height
-        );
-
+        const scale = Math.min(canvasSize / image.width, canvasSize / image.height);
         const scaledWidth = image.width * scale;
         const scaledHeight = image.height * scale;
-
         const imageX = (canvasSize - scaledWidth) / 2;
         const imageY = (canvasSize - scaledHeight) / 2;
 
         ctx.drawImage(image, imageX, imageY, scaledWidth, scaledHeight);
 
-        const fontSize = this.calculateFontSize(text);
-        ctx.font = `bold ${fontSize}px Impact, Arial Black, sans-serif`;
+        // Dynamic Font Scaling (Single Line)
+        const maxLineWidth = canvasSize * 0.95; // Use full 512px canvas width
+        let fontSize = 65; // Starting font size
+        const minFontSize = 18;
+
+        ctx.font = `bold ${fontSize}px "JetBrainsMono Nerd Font", "Noto Sans", Arial, sans-serif`;
+
+        // Decrease font size until text fits canvas width or hits min size
+        while (ctx.measureText(text).width > maxLineWidth && fontSize > minFontSize) {
+            fontSize -= 2;
+            ctx.font = `bold ${fontSize}px "JetBrainsMono Nerd Font", "Noto Sans", Arial, sans-serif`;
+        }
+
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
+        ctx.textBaseline = 'middle';
 
-        const textX = canvasSize / 2;
-        const textY = imageY + scaledHeight - 30;
+        // Position slightly above the bottom of the image, or absolute bottom if image ends high
+        const bottomEdge = Math.min(canvasSize, imageY + scaledHeight);
+        const y = Math.min(canvasSize - 20, bottomEdge - (fontSize * 0.5) - 5);
 
-        const metrics = ctx.measureText(text);
-        const textWidth = metrics.width;
-        const textHeight = fontSize;
-
-        const padding = 15;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.fillRect(
-            textX - textWidth / 2 - padding,
-            textY - textHeight - padding,
-            textWidth + padding * 2,
-            textHeight + padding * 2
-        );
-
+        // Draw Stroke (Thicker for better visibility without background)
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = Math.max(fontSize / 6, 4);
         ctx.lineJoin = 'round';
-        ctx.miterLimit = 2;
-        ctx.strokeText(text, textX, textY);
+        ctx.strokeText(text, canvasSize / 2, y);
 
+        // Fill
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(text, textX, textY);
+        ctx.fillText(text, canvasSize / 2, y);
 
         return canvas.toBuffer('image/png');
     }
 
     calculateFontSize(text) {
-        const length = text.length;
-
-        if (length <= 5) return 65;
-        if (length <= 10) return 55;
-        if (length <= 15) return 45;
-        if (length <= 20) return 38;
-        if (length <= 30) return 32;
-
-        return 28;
+        // Obsolete but kept for compatibility
+        return 30;
     }
 }
 
