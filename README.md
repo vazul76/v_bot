@@ -35,6 +35,7 @@
 - **VirusTotal Scan**: Scan file, URL, atau hash untuk mendeteksi malware menggunakan API VirusTotal.
 
 ### 🔧 Smart System
+- **Health Monitoring**: Automatic health check setiap hari jam 8 pagi untuk semua service (YouTube, TikTok, Instagram, dll). Bot otomatis kirim laporan WA ke admin setiap hari + command manual `/health`.
 - **Offline Filtering**: Bot cerdas yang mengabaikan pesan saat sedang offline untuk mencegah spam penumpukan perintah saat baru startup.
 - **Auto Reconnect**: Otomatis reconnect jika koneksi terputus.
 - **Multi-File Auth State**: Session management yang lebih aman dengan Baileys.
@@ -44,8 +45,7 @@
 ## 🛠️ Technology Stack
 
 - **[@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys)** - WhatsApp Web API
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - YouTube & Social Media Downloader
-- **[@tobyg74/tiktok-api-dl](https://www.npmjs.com/package/@tobyg74/tiktok-api-dl)** - TikTok Downloader API
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Universal Video Downloader (YouTube, TikTok, Instagram, Twitter, Facebook)
 - **[BMKG API](https://api.bmkg.go.id/)** - DI Yogyakarta Weather Data (Free, No API Key)
 - **[Groq SDK](https://groq.com/)** - AI Translation (Llama 3.3)
 - **[wa-sticker-formatter](https://github.com/AlenSaito1/wa-sticker-formatter)** - Sticker Creator
@@ -135,6 +135,8 @@ Gunakan prefix `/` (slash) diikuti oleh perintah:
 | `/ig [Link]` | Download Instagram (Video/Reels only) | Max 100MB |
 | `/twitter` / `/x [Link]` | Download Media Twitter/X (Video/Foto) | Max 100MB |
 | `/cuaca [Lokasi]` | Cek Cuaca BMKG (DI Yogyakarta) | 516 lokasi |
+| `/health` | Check health semua service bot | - |
+| `/health update` | Update yt-dlp binary | - |
 | `/poll [Tanya],[Opsi]` | Buat Polling WhatsApp | - |
 | `/say [Teks]` | Text-to-Speech (Auto-Detect) | Max 200 char |
 | `/tr [Lang] [Teks]` | Translate AI (id, en, jp) | - |
@@ -176,16 +178,33 @@ Gunakan prefix `/` (slash) diikuti oleh perintah:
 File `.env` tidak diperlukan untuk fitur dasar. Jika ingin menggunakan fitur tambahan, buat file `.env` di root project:
 
 ```env
-# VirusTotal API Key (Optional - untuk .scan command)
+# VirusTotal API Key (Optional - untuk /scan command)
 VT_API_KEY=your_virustotal_api_key_here
 
-# Groq API Key (Optional - untuk .tr translate command)
+# Groq API Key (Optional - untuk /tr translate command)
 GROQ_API_KEY=your_groq_api_key_here
+
+# Admin WhatsApp Number for Health Monitoring (Optional)
+# Format: 628xxxxxxxxxx@s.whatsapp.net
+ADMIN_NUMBER=628xxxxxxxxxx@s.whatsapp.net
 ```
 
 **Dapatkan API Key gratis:**
 - VirusTotal: [https://www.virustotal.com/gui/my-apikey](https://www.virustotal.com/gui/my-apikey)
 - Groq: [https://console.groq.com/keys](https://console.groq.com/keys)
+
+### 🍪 Cookies.txt (Optional - untuk stabilitas download)
+
+Cookies.txt dapat meningkatkan stabilitas download YouTube dan TikTok dengan bypass anti-bot:
+
+1. **Install browser extension**: [Get cookies.txt LOCALLY](https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc)
+2. **Login ke YouTube/TikTok** di browser Anda
+3. **Klik extension** dan export cookies
+4. **Simpan sebagai `cookies.txt`** di root project (sejajar dengan `package.json`)
+5. Bot akan otomatis menggunakan cookies untuk semua download
+
+> [!TIP]
+> Cookies.txt **opsional** tapi **sangat direkomendasikan** untuk menghindari error 403 Forbidden pada YouTube dan TikTok.
 
 ---
 
@@ -232,6 +251,15 @@ Proyek ini dilisensikan di bawah **MIT License**. Lihat file [LICENSE](LICENSE) 
 ---
 
 ## 📝 Changelog
+
+### v2.3.2 (February 2026)
+- ✅ Prefix diubah dari `.` ke `/` untuk semua command
+- ✅ Weather feature dengan BMKG API (516 lokasi DI Yogyakarta)
+- ✅ Migrasi TikTok downloader ke yt-dlp (hapus dependency `@tobyg74/tiktok-api-dl`)
+- ✅ Health monitoring system: auto-check semua service setiap hari jam 8 pagi
+- ✅ WhatsApp laporan harian ke admin untuk monitoring semua service
+- ✅ Manual health check command: `/health` dan `/health update`
+- ✅ Update yt-dlp binary ke versi terbaru (2026.01.31)
 
 ### v2.0.0 (December 2025)
 - ✅ Migrasi dari `whatsapp-web.js` ke `@whiskeysockets/baileys`

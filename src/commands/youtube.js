@@ -15,6 +15,16 @@ class YouTubeDownloader {
         }
     }
 
+    getYtDlpCommonOptions() {
+        return {
+            noPlaylist: true,
+            noWarnings: true,
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            referer: 'https://www.youtube.com/',
+            extractorArgs: 'youtube:player_client=android,web'
+        };
+    }
+
     async downloadAudio(msg, sock, messageBody) {
         let tempFilePath = null;
 
@@ -44,12 +54,11 @@ class YouTubeDownloader {
             const outputTemplate = path.join(this.tempDir, `yt_audio_${Date.now()}.%(ext)s`);
 
             await ytdlpExec(url, {
+                ...this.getYtDlpCommonOptions(),
                 extractAudio: true,
                 audioFormat: 'mp3',
                 audioQuality: 0,
                 output: outputTemplate,
-                noPlaylist: true,
-                noWarnings: true,
                 preferFreeFormats: true,
                 addMetadata: true
             });
@@ -128,10 +137,9 @@ class YouTubeDownloader {
 
             try {
                 await ytdlpExec(url, {
+                    ...this.getYtDlpCommonOptions(),
                     format: 'best[ext=mp4]/best',
-                    output: outputTemplate,
-                    noPlaylist: true,
-                    noWarnings: true
+                    output: outputTemplate
                 });
             } catch (dlError) {
                 if (! fs.existsSync(tempFilePath) || fs.statSync(tempFilePath).size === 0) {

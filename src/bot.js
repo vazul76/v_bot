@@ -3,6 +3,7 @@ const P = require('pino');
 const qrcode = require('qrcode-terminal');
 const logger = require('./utils/logger');
 const helpers = require('./utils/helpers');
+const healthChecker = require('./utils/healthChecker');
 
 // Commands
 const stickerCommand = require('./commands/sticker');
@@ -16,6 +17,7 @@ const ttsCommand = require('./commands/tts');
 const translateCommand = require('./commands/translate');
 const scanCommand = require('./commands/scan');
 const weatherCommand = require('./commands/weather');
+const healthCommand = require('./commands/health');
 
 class WABot {
     constructor() {
@@ -24,6 +26,7 @@ class WABot {
         this.startupTime = null;
         this.authState = null;
         this.saveCreds = null;
+        this.adminNumber = process.env.ADMIN_NUMBER || null; // Format: 628xxxxxxxxxx@s.whatsapp.net
     }
 
     async initialize() {
@@ -72,6 +75,14 @@ class WABot {
                 this.startupTime = Math.floor(Date.now() / 1000);
                 logger.success('✅ Bot WhatsApp siap digunakan!');
                 logger.info(`Prefix command:  ${this.prefix}`);
+                
+                // Setup health checker
+                if (this.adminNumber) {
+                    healthChecker.setAdmin(this.adminNumber, this.sock);
+                    this.startHealthChecks();
+                } else {
+                    logger.warn('ADMIN_NUMBER not set in .env, health monitoring disabled');
+                }
             }
 
             // Disconnected
@@ -214,6 +225,10 @@ class WABot {
                     logger.info('Menjalankan command /cuaca');
                     await weatherCommand.execute(msg, this.sock, body);
                     break;
+                case 'health':
+                    logger.info('Menjalankan command /health');
+                    await healthCommand.execute(msg, this.sock, body);
+                    break;
                 case 'menu':
                     logger.info('Menjalankan command help');
                     await this.sendHelp(msg);
@@ -310,6 +325,40 @@ _Bot by vazul76 - v2.0.0_`;
         await helpers.replyWithTyping(this.sock, msg, helpText, 2000);
         await helpers.reactSuccess(this.sock, msg);
         logger.success('Help message sent');
+    }
+
+    startHealthChecks() {
+        // Schedule daily health check at 8:00 AM
+        const scheduleNextCheck = () => {
+            const now = new Date();
+            const next = new Date();
+            next.setHours(8, 0, 0, 0); // 8:00 AM
+            
+            // If 8 AM already passed today, schedule for tomorrow
+            if (now.getHours() >= 8) {
+                next.setDate(next.getDate() + 1);
+            }
+            
+            const timeUntilNext = next.getTime() - now.getTime();
+            
+            setTimeout(async () => {
+                logger.info('Running scheduled health check (8:00 AM)...');
+                const results = await healthChecker.checkAll();
+                logger.info(healthChecker.formatReport(results));
+                
+                // Send report to admin (including warnings)
+                await healthChecker.sendReport(results);
+                
+                // Schedule next check
+                scheduleNextCheck();
+            }, timeUntilNext);
+            
+            const hours = Math.floor(timeUntilNext / (1000 * 60 * 60));
+            const minutes = Math.floor((timeUntilNext % (1000 * 60 * 60)) / (1000 * 60));
+            logger.info(`Next health check scheduled at 8:00 AM (in ${hours}h ${minutes}m)`);
+        };
+
+        scheduleNextCheck();
     }
 
     async stop() {

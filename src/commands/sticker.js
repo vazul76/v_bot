@@ -1,9 +1,15 @@
 const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 const { Sticker, StickerTypes } = require('wa-sticker-formatter');
 const Canvas = require('canvas');
-const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
+
+// Register font for consistent cross-platform rendering (Arch vs Armbian)
+const fontPath = '/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf';
+if (fs.existsSync(fontPath)) {
+    Canvas.registerFont(fontPath, { family: 'CustomNoto' });
+}
+const sharp = require('sharp');
 const logger = require('../utils/logger');
 const helpers = require('../utils/helpers');
 
@@ -281,12 +287,14 @@ class StickerCommand {
         let fontSize = 65; // Starting font size
         const minFontSize = 18;
 
-        ctx.font = `bold ${fontSize}px "JetBrainsMono Nerd Font", "Noto Sans", Arial, sans-serif`;
+        // Use custom registered font if available, fallback to system fonts
+        const fontStack = '"CustomNoto", "JetBrainsMono Nerd Font", "Noto Sans", Arial, sans-serif';
+        ctx.font = `bold ${fontSize}px ${fontStack}`;
 
         // Decrease font size until text fits canvas width or hits min size
         while (ctx.measureText(text).width > maxLineWidth && fontSize > minFontSize) {
             fontSize -= 2;
-            ctx.font = `bold ${fontSize}px "JetBrainsMono Nerd Font", "Noto Sans", Arial, sans-serif`;
+            ctx.font = `bold ${fontSize}px ${fontStack}`;
         }
 
         ctx.textAlign = 'center';
