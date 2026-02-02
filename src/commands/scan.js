@@ -24,7 +24,7 @@ class ScanCommand {
 
             const quoted = await helpers.getQuotedMessage(msg);
             const mediaTarget = this.getMediaTarget(msg, quoted);
-            const query = body.replace(/^\.scan\s*/i, '').trim();
+            const query = body.replace(/^\/scan\s*/i, '').trim();
 
             if (mediaTarget) {
                 await helpers.reactProcessing(sock, msg);
@@ -112,7 +112,12 @@ class ScanCommand {
             const extractedMessage = extractMedia(quoted.message);
             if (extractedMessage) {
                 return {
-                    key:  { remoteJid: msg.key.remoteJid, id: quoted.id, fromMe: false },
+                    key:  {
+                        remoteJid: msg.key.remoteJid,
+                        id: quoted.id,
+                        fromMe: false,
+                        participant: quoted.sender
+                    },
                     message: extractedMessage
                 };
             }
@@ -122,57 +127,66 @@ class ScanCommand {
     }
 
     async scanFile(targetMsg, originalMsg, sock) {
-        const buffer = await helpers.downloadMedia(sock, targetMsg);
-        if (!buffer) {
-            await helpers.replyWithTyping(sock, originalMsg, '❌ Tidak bisa mengambil media. Kirim ulang file atau reply dengan .scan.');
-            return await helpers.reactError(sock, originalMsg);
-        }
+        try {
+            await helpers.reactProcessing(sock, originalMsg);
+            
+            const buffer = await helpers.downloadMedia(sock, targetMsg);
+            
+            if (!buffer) {
+                await helpers.replyWithTyping(sock, originalMsg, '❌ Tidak bisa mengambil media. Kirim ulang file atau reply dengan /scan.');
+                return await helpers.reactError(sock, originalMsg);
+            }
 
-        const fileSize = buffer.length;
-        if (fileSize > MAX_DIRECT_UPLOAD) {
-            await helpers.replyWithTyping(sock, originalMsg, '❌ File lebih besar dari 32MB. Endpoint free hanya mendukung sampai 32MB.');
-            return await helpers.reactError(sock, originalMsg);
-        }
+            const fileSize = buffer.length;
+            if (fileSize > MAX_DIRECT_UPLOAD) {
+                await helpers.replyWithTyping(sock, originalMsg, '❌ File lebih besar dari 32MB. Endpoint free hanya mendukung sampai 32MB.');
+                return await helpers.reactError(sock, originalMsg);
+            }
 
-        const fileName = this.extractFileName(targetMsg) || 'file.bin';
-        const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
-        logger.info(`Scanning file ${fileName} (sha256=${sha256})`);
+            const fileName = this.extractFileName(targetMsg) || 'file.bin';
+            const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+            logger.info(`Scanning file ${fileName} (sha256=${sha256})`);
 
-        const existing = await this.safeGetFileReport(sha256);
-        if (existing) {
-            const text = this.formatReport(existing.attributes?.last_analysis_stats, existing.attributes?.last_analysis_results, {
+            const existing = await this.safeGetFileReport(sha256);
+            if (existing) {
+                const text = this.formatReport(existing.attributes?.last_analysis_stats, existing.attributes?.last_analysis_results, {
+                    title: `File name: ${fileName}`,
+                    type: existing.attributes?.type_description || 'Unknown',
+                    size: this.formatSize(existing.attributes?.size || fileSize),
+                    link: `https://www.virustotal.com/gui/file/${existing.id || sha256}`
+                });
+                await helpers.replyWithTyping(sock, originalMsg, text);
+                return await helpers.reactSuccess(sock, originalMsg);
+            }
+
+            const analysisId = await this.uploadFile(buffer, fileName);
+            if (! analysisId) {
+                await helpers.replyWithTyping(sock, originalMsg, '❌ Upload ke VirusTotal gagal.');
+                return await helpers.reactError(sock, originalMsg);
+            }
+
+            const analysis = await this.pollAnalysis(analysisId);
+            if (!analysis) {
+                await helpers.replyWithTyping(sock, originalMsg, '❌ Analisis belum selesai atau gagal.');
+                return await helpers.reactError(sock, originalMsg);
+            }
+
+            const stats = analysis.attributes?.stats;
+            const results = analysis.attributes?.results;
+            const text = this.formatReport(stats, results, {
                 title: `File name: ${fileName}`,
-                type: existing.attributes?.type_description || 'Unknown',
-                size: this.formatSize(existing.attributes?.size || fileSize),
-                link: `https://www.virustotal.com/gui/file/${existing.id || sha256}`
+                type: analysis.attributes?.type || 'File',
+                size: this.formatSize(fileSize),
+                link: `https://www.virustotal.com/gui/analysis/${analysis.id}`
             });
+
             await helpers.replyWithTyping(sock, originalMsg, text);
-            return await helpers.reactSuccess(sock, originalMsg);
+            await helpers.reactSuccess(sock, originalMsg);
+        } catch (error) {
+            logger.error('Error scanning file:', error);
+            await helpers.reactError(sock, originalMsg);
+            await helpers.replyWithTyping(sock, originalMsg, '❌ Gagal menganalisis file. Coba lagi nanti.');
         }
-
-        const analysisId = await this.uploadFile(buffer, fileName);
-        if (! analysisId) {
-            await helpers.replyWithTyping(sock, originalMsg, '❌ Upload ke VirusTotal gagal.');
-            return await helpers.reactError(sock, originalMsg);
-        }
-
-        const analysis = await this.pollAnalysis(analysisId);
-        if (!analysis) {
-            await helpers.replyWithTyping(sock, originalMsg, '❌ Analisis belum selesai atau gagal.');
-            return await helpers.reactError(sock, originalMsg);
-        }
-
-        const stats = analysis.attributes?.stats;
-        const results = analysis.attributes?.results;
-        const text = this.formatReport(stats, results, {
-            title: `File name: ${fileName}`,
-            type: analysis.attributes?.type || 'File',
-            size: this.formatSize(fileSize),
-            link: `https://www.virustotal.com/gui/analysis/${analysis.id}`
-        });
-
-        await helpers.replyWithTyping(sock, originalMsg, text);
-        await helpers.reactSuccess(sock, originalMsg);
     }
 
     async scanUrl(url, msg, sock) {
@@ -225,7 +239,7 @@ class ScanCommand {
         const report = await this.safeGetFileReport(hash);
 
         if (! report) {
-            await helpers.replyWithTyping(sock, msg, '❌ Hash tidak ditemukan di VirusTotal. Coba upload file-nya dengan .scan file.');
+            await helpers.replyWithTyping(sock, msg, '❌ Hash tidak ditemukan di VirusTotal. Coba upload file-nya dengan /scan file.');
             return await helpers.reactError(sock, msg);
         }
 
@@ -333,6 +347,7 @@ class ScanCommand {
             return null;
         }
     }
+    
 
     async pollAnalysis(id) {
         const maxAttempts = 10;

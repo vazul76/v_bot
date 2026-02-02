@@ -20,7 +20,6 @@ class HealthCommand {
 
             // Run health check
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '🏥 Running health checks...\n⏳ This may take a moment...', 1000);
 
             const results = await healthChecker.checkAll();
             

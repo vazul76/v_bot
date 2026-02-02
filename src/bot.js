@@ -18,6 +18,7 @@ const translateCommand = require('./commands/translate');
 const scanCommand = require('./commands/scan');
 const weatherCommand = require('./commands/weather');
 const healthCommand = require('./commands/health');
+const priceCommand = require('./commands/price');
 
 class WABot {
     constructor() {
@@ -229,6 +230,10 @@ class WABot {
                     logger.info('Menjalankan command /health');
                     await healthCommand.execute(msg, this.sock, body);
                     break;
+                case 'price':
+                    logger.info('Menjalankan command /price');
+                    await priceCommand.execute(msg, this.sock, body);
+                    break;
                 case 'menu':
                     logger.info('Menjalankan command help');
                     await this.sendHelp(msg);
@@ -316,6 +321,9 @@ class WABot {
 
 *🌤️ WEATHER*
 └ \`/cuaca [tempat (kelurahan)]\` - Cek Cuaca D I Yogyakarta
+
+*💹 MARKET*
+└ \`/price\` - Harga Crypto & Komoditas + IHSG (24h change)
 
 *💡 TIPS: *
 • Bisa reply pesan yang ada link!

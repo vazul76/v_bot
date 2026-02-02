@@ -28,7 +28,6 @@ class WeatherCommand {
             }
 
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Mengambil data cuaca dari BMKG...', 1500);
 
             // Reset flag
             this.searchedAsKecamatan = false;
@@ -252,7 +251,7 @@ class WeatherCommand {
             response += `${emoji} ${hours}:${minutes} - ${desc}, ${temp}°C\n`;
         });
 
-        response += `\n_Data dari BMKG_`;
+        response += `\n_Data valid dari BMKG_`;
         return response;
     }
 

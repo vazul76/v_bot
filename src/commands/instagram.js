@@ -37,7 +37,6 @@ class InstagramDownloader {
             logger.info(`Downloading from: ${url}`);
             
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Mendownload dari Instagram...', 1500);
 
             const timestamp = Date.now();
             const outputTemplate = path.join(this.tempDir, `ig_media_${timestamp}.%(ext)s`);

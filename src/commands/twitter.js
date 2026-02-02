@@ -37,7 +37,6 @@ class TwitterDownloader {
             logger.info(`Downloading from: ${url}`);
             
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Mendownload dari Twitter/X...', 1500);
 
             const outputTemplate = path.join(this.tempDir, `twitter_media_${Date.now()}.%(ext)s`);
 

@@ -49,7 +49,6 @@ class YouTubeDownloader {
             logger.info(`Downloading audio from: ${url}`);
             
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Mendownload audio dari YouTube...\n🎵 Tunggu sebentar ya!', 1500);
 
             const outputTemplate = path.join(this.tempDir, `yt_audio_${Date.now()}.%(ext)s`);
 
@@ -129,7 +128,6 @@ class YouTubeDownloader {
             logger.info(`Downloading video from: ${url}`);
             
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Mendownload video dari YouTube...', 1500);
 
             const outputTemplate = path.join(this.tempDir, `yt_video_${Date.now()}.%(ext)s`);
             const expectedPath = outputTemplate.replace('.%(ext)s', '.mp4');

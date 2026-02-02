@@ -31,6 +31,7 @@
 - **Text-to-Speech (TTS)**: Ubah teks jadi suara Google dengan deteksi bahasa otomatis (Indo, Arab, Jepang).
 - **Translate AI (Groq)**: Terjemahkan teks ke berbagai bahasa (Indo, Inggris, Jepang) dengan AI yang natural.
 - **Weather Info (BMKG)**: Cek prakiraan cuaca real-time untuk wilayah DI Yogyakarta dengan data resmi BMKG.
+- **Market Price**: Cek harga crypto populer, komoditas (Gold/Silver), dan IHSG dengan perubahan 24 jam.
 - **WhatsApp Poll**: Buat voting/polling langsung di grup WhatsApp.
 - **VirusTotal Scan**: Scan file, URL, atau hash untuk mendeteksi malware menggunakan API VirusTotal.
 
@@ -135,6 +136,7 @@ Gunakan prefix `/` (slash) diikuti oleh perintah:
 | `/ig [Link]` | Download Instagram (Video/Reels only) | Max 100MB |
 | `/twitter` / `/x [Link]` | Download Media Twitter/X (Video/Foto) | Max 100MB |
 | `/cuaca [Lokasi]` | Cek Cuaca BMKG (DI Yogyakarta) | 516 lokasi |
+| `/price` | Harga crypto populer, komoditas, IHSG (24h change) | - |
 | `/health` | Check health semua service bot | - |
 | `/health update` | Update yt-dlp binary | - |
 | `/poll [Tanya],[Opsi]` | Buat Polling WhatsApp | - |

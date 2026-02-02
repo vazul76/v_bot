@@ -44,12 +44,6 @@ class StickerCommand {
 
             await helpers.reactProcessing(sock, msg);
 
-            if (isVideo) {
-                await helpers.replyWithTyping(sock, msg, '⏳ Membuat animated sticker dari video...\n🎬 Tunggu sebentar ya! ', 1000);
-            } else {
-                await helpers.replyWithTyping(sock, msg, '⏳ Membuat sticker... ', 1000);
-            }
-
             logger.info('Membuat sticker dengan wa-sticker-formatter...');
             const sticker = new Sticker(media, {
                 pack: this.packName,
@@ -116,7 +110,6 @@ class StickerCommand {
             }
 
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Membuat sticker dengan teks...', 1000);
 
             logger.info('Menambahkan teks ke gambar...');
             const imageBuffer = await this.addTextToImage(media, text);
@@ -165,7 +158,6 @@ class StickerCommand {
             logger.info('Sticker ditemukan, downloading...');
 
             await helpers.reactProcessing(sock, msg);
-            await helpers.replyWithTyping(sock, msg, '⏳ Mengubah sticker menjadi gambar...', 1000);
 
             const buffer = await downloadMediaMessage(
                 { key: msg.key, message: { ...quoted.message } },

@@ -156,7 +156,12 @@ class BotHelpers {
     async downloadMedia(sock, msg) {
         try {
             const { downloadMediaMessage } = require('@whiskeysockets/baileys');
-            const buffer = await downloadMediaMessage(msg, 'buffer', {});
+            const buffer = await downloadMediaMessage(
+                msg,
+                'buffer',
+                {},
+                sock?.updateMediaMessage ? { reuploadRequest: sock.updateMediaMessage } : undefined
+            );
             return buffer;
         } catch (error) {
             logger.error('Error downloading media:', error);
