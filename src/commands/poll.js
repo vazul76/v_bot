@@ -27,13 +27,15 @@ class PollCommand {
             logger.info(`Creating poll: "${question}" with options: ${options.join(', ')}`);
             await helpers.reactCommandReceived(sock, msg);
 
-            // Send Poll
+            // Send Poll with reply
             await sock.sendMessage(msg.key.remoteJid, {
                 poll: {
                     name: question,
                     values: options,
                     selectableCount: 1
                 }
+            }, {
+                quoted: msg
             });
 
             logger.success('Poll sent successfully');
