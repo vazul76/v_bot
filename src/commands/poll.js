@@ -2,6 +2,12 @@ const logger = require('../utils/logger');
 const helpers = require('../utils/helpers');
 
 class PollCommand {
+    constructor() {
+        this.commands = [
+            { name: 'poll', method: 'createPoll', description: 'Buat Polling' },
+            { name: 'pool', method: 'createPoll', description: 'Buat Polling (Alias)' }
+        ];
+    }
     async createPoll(msg, sock, messageBody) {
         try {
             // Remove command (/poll or /pool or .poll or .pool)

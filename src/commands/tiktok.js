@@ -9,6 +9,11 @@ class TikTokDownloader {
         this.tempDir = path.join(__dirname, '../../temp');
         this.maxMediaSize = 100 * 1024 * 1024;
 
+        this.commands = [
+            { name: 'tiktok', method: 'downloadMedia', description: 'TikTok Video' },
+            { name: 'tt', method: 'downloadMedia', description: 'TikTok Video (Alias)' }
+        ];
+
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
@@ -44,7 +49,7 @@ class TikTokDownloader {
             }
 
             logger.info(`Downloading from: ${url}`);
-            
+
             await helpers.reactProcessing(sock, msg);
 
             const timestamp = Date.now();
@@ -71,7 +76,7 @@ class TikTokDownloader {
 
             logger.info('Mengirim media...');
             await helpers.simulateTyping(sock, msg, 1500);
-            
+
             const mediaBuffer = fs.readFileSync(tempFilePath);
             await helpers.replyVideoWithTyping(sock, msg, mediaBuffer);
 

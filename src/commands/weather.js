@@ -11,6 +11,10 @@ class WeatherCommand {
         this.cityCodesCache = {};
         this.wilayahData = null;
         this.searchedAsKecamatan = false; // Track if user searched for kecamatan
+        this.commands = [
+            { name: 'cuaca', method: 'execute', description: 'Cek Cuaca DIY' },
+            { name: 'weather', method: 'execute', description: 'Cek Cuaca DIY (Alias)' }
+        ];
     }
 
     async execute(msg, sock, messageBody) {
@@ -23,7 +27,7 @@ class WeatherCommand {
 
             if (!location) {
                 await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, 
+                return helpers.replyWithTyping(sock, msg,
                     '❌ Format: /cuaca [nama tempat]\n\n💡 Contoh:\n/cuaca Tirtoadi\n/cuaca Tlogoadi\n/cuaca Brontokusuman');
             }
 
@@ -34,7 +38,7 @@ class WeatherCommand {
 
             // Find location code
             const locationCode = await this.findLocationCode(location);
-            
+
             if (!locationCode) {
                 throw new Error('Lokasi tidak ditemukan');
             }
@@ -56,12 +60,12 @@ class WeatherCommand {
         } catch (error) {
             logger.error('Error:', error);
             await helpers.reactError(sock, msg);
-            
+
             let errorMsg = '❌ Gagal mengambil data cuaca!';
             if (error.message.includes('tidak ditemukan')) {
                 errorMsg = '❌ Lokasi tidak ditemukan!\n\n💡 Hanya support wilayah DI Yogyakarta.\nContoh: /cuaca tirtoadi, /cuaca tlogoadi, /cuaca brontokusuman';
             }
-            
+
             await helpers.replyWithTyping(sock, msg, errorMsg);
         }
     }
@@ -76,7 +80,7 @@ class WeatherCommand {
             const csvPath = path.join(__dirname, '../../data/wilayah.csv');
             const csvContent = fs.readFileSync(csvPath, 'utf-8');
             const lines = csvContent.split('\n');
-            
+
             this.wilayahData = [];
             for (const line of lines) {
                 if (!line.trim()) continue;
@@ -93,7 +97,7 @@ class WeatherCommand {
                     }
                 }
             }
-            
+
             logger.info(`Loaded ${this.wilayahData.length} wilayah DI Yogyakarta from CSV`);
             return this.wilayahData;
         } catch (error) {
@@ -111,12 +115,12 @@ class WeatherCommand {
 
         // Load CSV data
         const wilayahList = this.loadWilayahData();
-        
+
         if (wilayahList.length === 0) {
             logger.error('Wilayah data not loaded');
             return null;
         }
-        
+
         // Direct exact match
         let match = wilayahList.find(w => w.nama === locationLower);
         if (match) {
@@ -124,8 +128,8 @@ class WeatherCommand {
             if (match.level === 'kecamatan') {
                 this.searchedAsKecamatan = true; // Mark as kecamatan search
                 const kecamatanCode = match.kode;
-                const kelurahan = wilayahList.find(w => 
-                    w.level === 'kelurahan' && 
+                const kelurahan = wilayahList.find(w =>
+                    w.level === 'kelurahan' &&
                     w.kode.startsWith(kecamatanCode + '.')
                 );
                 if (kelurahan) {
@@ -136,7 +140,7 @@ class WeatherCommand {
             this.cityCodesCache[locationLower] = match.kode;
             return match.kode;
         }
-        
+
         // Fuzzy match - starts with
         match = wilayahList.find(w => w.nama.startsWith(locationLower));
         if (match) {
@@ -144,8 +148,8 @@ class WeatherCommand {
             if (match.level === 'kecamatan') {
                 this.searchedAsKecamatan = true; // Mark as kecamatan search
                 const kecamatanCode = match.kode;
-                const kelurahan = wilayahList.find(w => 
-                    w.level === 'kelurahan' && 
+                const kelurahan = wilayahList.find(w =>
+                    w.level === 'kelurahan' &&
                     w.kode.startsWith(kecamatanCode + '.')
                 );
                 if (kelurahan) {
@@ -156,7 +160,7 @@ class WeatherCommand {
             this.cityCodesCache[locationLower] = match.kode;
             return match.kode;
         }
-        
+
         // Fuzzy match - contains
         match = wilayahList.find(w => w.nama.includes(locationLower));
         if (match) {
@@ -164,8 +168,8 @@ class WeatherCommand {
             if (match.level === 'kecamatan') {
                 this.searchedAsKecamatan = true; // Mark as kecamatan search
                 const kecamatanCode = match.kode;
-                const kelurahan = wilayahList.find(w => 
-                    w.level === 'kelurahan' && 
+                const kelurahan = wilayahList.find(w =>
+                    w.level === 'kelurahan' &&
                     w.kode.startsWith(kecamatanCode + '.')
                 );
                 if (kelurahan) {
@@ -199,13 +203,13 @@ class WeatherCommand {
             // User searched for kelurahan: show "[Kelurahan], Kec. [Kecamatan], Kab. [Kabupaten]"
             locationName = `${lokasi.desa}, Kec. ${lokasi.kecamatan}, ${lokasi.kotkab}`;
         }
-        
+
         // Get current time
         const now = new Date();
-        
+
         // Flatten all forecast items
         const allForecasts = cuacaData.flat();
-        
+
         // Find closest current/future forecast
         let current = allForecasts[0];
         for (const item of allForecasts) {
@@ -215,7 +219,7 @@ class WeatherCommand {
                 break;
             }
         }
-        
+
         const currentDesc = current.weather_desc;
         const currentTemp = Math.round(current.t);
         const currentHumidity = current.hu;
@@ -225,7 +229,7 @@ class WeatherCommand {
         // Build response
         let response = `🌤️ *Prakiraan Cuaca BMKG*\n`;
         response += `📍 ${locationName}\n\n`;
-        
+
         response += `*Saat ini:*\n`;
         response += `${this.getWeatherEmoji(current.weather)} ${currentDesc}\n`;
         response += `🌡️ Suhu: ${currentTemp}°C\n`;
@@ -239,7 +243,7 @@ class WeatherCommand {
             const itemTime = new Date(item.local_datetime);
             return itemTime > now;
         }).slice(0, 4);
-        
+
         futureForecasts.forEach(item => {
             const time = new Date(item.local_datetime);
             const hours = time.getHours().toString().padStart(2, '0');
@@ -247,7 +251,7 @@ class WeatherCommand {
             const desc = item.weather_desc;
             const temp = Math.round(item.t);
             const emoji = this.getWeatherEmoji(item.weather);
-            
+
             response += `${emoji} ${hours}:${minutes} - ${desc}, ${temp}°C\n`;
         });
 

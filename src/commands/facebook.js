@@ -9,6 +9,10 @@ class FacebookDownloader {
         this.tempDir = path.join(__dirname, '../../temp');
         this.maxMediaSize = 100 * 1024 * 1024; // 100MB
 
+        this.commands = [
+            { name: 'fb', method: 'downloadMedia', description: 'Facebook Video/Photo' }
+        ];
+
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
@@ -37,7 +41,7 @@ class FacebookDownloader {
             }
 
             logger.info(`Downloading media from: ${url}`);
-            
+
             await helpers.reactProcessing(sock, msg);
 
             const outputTemplate = path.join(this.tempDir, `fb_media_${Date.now()}.%(ext)s`);
@@ -59,7 +63,7 @@ class FacebookDownloader {
             }
 
             tempFilePath = path.join(this.tempDir, files[files.length - 1]);
-            
+
             const stats = fs.statSync(tempFilePath);
             logger.info(`Media size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
 
@@ -73,7 +77,7 @@ class FacebookDownloader {
 
             logger.info('Mengirim media...');
             await helpers.simulateTyping(sock, msg, 1500);
-            
+
             if (ext === '.mp4') {
                 await helpers.replyVideoWithTyping(sock, msg, mediaBuffer);
             } else {

@@ -1,5 +1,7 @@
 const { default: makeWASocket, DisconnectReason, useMultiFileAuthState, delay } = require('@whiskeysockets/baileys');
+const chalk = require('chalk');
 const P = require('pino');
+
 const qrcode = require('qrcode-terminal');
 const logger = require('./utils/logger');
 const helpers = require('./utils/helpers');
@@ -19,6 +21,8 @@ const scanCommand = require('./commands/scan');
 const weatherCommand = require('./commands/weather');
 const healthCommand = require('./commands/health');
 const priceCommand = require('./commands/price');
+const imsakiyahCommand = require('./commands/imsakiyah');
+
 
 class WABot {
     constructor() {
@@ -28,6 +32,33 @@ class WABot {
         this.authState = null;
         this.saveCreds = null;
         this.adminNumber = process.env.ADMIN_NUMBER || null; // Format: 628xxxxxxxxxx@s.whatsapp.net
+        this.commands = new Map();
+
+        this.registerCommands();
+    }
+
+    registerCommands() {
+        // Collect all commands from command modules
+        const modules = [
+            stickerCommand, youtubeCommand, facebookCommand, tiktokCommand,
+            instagramCommand, twitterCommand, pollCommand, ttsCommand,
+            translateCommand, scanCommand, weatherCommand, healthCommand,
+            priceCommand, imsakiyahCommand
+        ];
+
+        modules.forEach(module => {
+            if (module.commands && Array.isArray(module.commands)) {
+                module.commands.forEach(cmd => {
+                    this.commands.set(cmd.name, {
+                        module,
+                        method: cmd.method,
+                        description: cmd.description
+                    });
+                });
+            }
+        });
+
+        logger.info(`Registered ${this.commands.size} commands dynamically`);
     }
 
     async initialize() {
@@ -54,7 +85,8 @@ class WABot {
             printQRInTerminal: false,
             logger: P({ level: 'silent' }),
             browser: ['V-Ultimate-Bot', 'Chrome', '121.0.0'],
-            defaultQueryTimeoutMs: undefined
+            defaultQueryTimeoutMs: undefined,
+            version: [2, 3000, 1033893291] // fix 405 Connection Failure on new pairing
         });
 
         this.setupEventHandlers();
@@ -74,9 +106,10 @@ class WABot {
             // Connected
             if (connection === 'open') {
                 this.startupTime = Math.floor(Date.now() / 1000);
+                this.displayBanner();
                 logger.success('✅ Bot WhatsApp siap digunakan!');
-                logger.info(`Prefix command:  ${this.prefix}`);
-                
+                logger.info(`${chalk.white('Prefix command:')}  ${chalk.yellow.bold(this.prefix)}`);
+
                 // Setup health checker
                 if (this.adminNumber) {
                     healthChecker.setAdmin(this.adminNumber, this.sock);
@@ -88,9 +121,32 @@ class WABot {
 
             // Disconnected
             if (connection === 'close') {
-                const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+                const statusCode = lastDisconnect?.error?.output?.statusCode;
+                const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
-                logger.warn('Connection closed:', lastDisconnect?.error?.message);
+                logger.warn('Connection closed:', lastDisconnect?.error?.message || 'No error message');
+                if (statusCode) {
+                    logger.warn(`Disconnect status code: ${statusCode}`);
+                }
+                if (lastDisconnect?.error?.output?.payload) {
+                    logger.warn(`Disconnect payload: ${JSON.stringify(lastDisconnect.error.output.payload)}`);
+                }
+
+                // Log full Baileys error detail
+                if (lastDisconnect?.error) {
+                    const err = lastDisconnect.error;
+                    logger.warn(`[Baileys] error.name: ${err.name}`);
+                    logger.warn(`[Baileys] error.message: ${err.message}`);
+                    if (err.stack) logger.warn(`[Baileys] error.stack:\n${err.stack}`);
+                    if (err.data !== undefined) logger.warn(`[Baileys] error.data: ${JSON.stringify(err.data)}`);
+                    if (err.output) logger.warn(`[Baileys] error.output (full): ${JSON.stringify(err.output)}`);
+                }
+
+                if (statusCode === 405) {
+                    logger.error('HTTP 405 — WebSocket upgrade ditolak oleh jaringan/server. Kemungkinan penyebab: ISP blocking, transparent proxy, atau DPI.');
+                    logger.error('Solusi: coba jaringan lain (hotspot), SSH SOCKS tunnel, atau jalankan bot di VPS.');
+                    return;
+                }
 
                 if (shouldReconnect) {
                     logger.info('Reconnecting...');
@@ -165,82 +221,24 @@ class WABot {
 
     async routeCommand(command, body, msg) {
         try {
-            switch (command) {
-                case 's':
-                    logger.info('Menjalankan command .s');
-                    await stickerCommand.createSticker(msg, this.sock);
-                    break;
-                case 'stext':
-                    logger.info('Menjalankan command .stext');
-                    await stickerCommand.createStickerWithText(msg, this.sock, body);
-                    break;
-                case 'toimg':
-                    logger.info('Menjalankan command .toimg');
-                    await stickerCommand.convertStickerToImage(msg, this.sock);
-                    break;
-                case 'ytmp3':
-                    logger.info('Menjalankan command .ytmp3');
-                    await youtubeCommand.downloadAudio(msg, this.sock, body);
-                    break;
-                case 'yt':
-                    logger.info('Menjalankan command .yt');
-                    await youtubeCommand.downloadVideo(msg, this.sock, body);
-                    break;
-                case 'fb':
-                    logger.info('Menjalankan command /fb');
-                    await facebookCommand.downloadMedia(msg, this.sock, body);
-                    break;
-                case 'tiktok':
-                case 'tt':
-                    logger.info('Menjalankan command /tiktok');
-                    await tiktokCommand.downloadMedia(msg, this.sock, body);
-                    break;
-                case 'ig':
-                    logger.info('Menjalankan command /ig');
-                    await instagramCommand.downloadMedia(msg, this.sock, body);
-                    break;
-                case 'twitter':
-                case 'x':
-                    logger.info('Menjalankan command /twitter');
-                    await twitterCommand.downloadMedia(msg, this.sock, body);
-                    break;
-                case 'poll':
-                case 'pool':
-                    logger.info('Menjalankan command /poll');
-                    await pollCommand.createPoll(msg, this.sock, body);
-                    break;
-                case 'say':
-                    logger.info('Menjalankan command .say');
-                    await ttsCommand.createAudio(msg, this.sock, body);
-                    break;
-                case 'tr':
-                    logger.info('Menjalankan command .tr');
-                    await translateCommand.translate(msg, this.sock, body);
-                    break;
-                case 'scan':
-                    logger.info('Menjalankan command /scan');
-                    await scanCommand.handle(msg, this.sock, body);
-                    break;
-                case 'cuaca':
-                case 'weather':
-                    logger.info('Menjalankan command /cuaca');
-                    await weatherCommand.execute(msg, this.sock, body);
-                    break;
-                case 'health':
-                    logger.info('Menjalankan command /health');
-                    await healthCommand.execute(msg, this.sock, body);
-                    break;
-                case 'price':
-                    logger.info('Menjalankan command /price');
-                    await priceCommand.execute(msg, this.sock, body);
-                    break;
-                case 'menu':
-                    logger.info('Menjalankan command help');
-                    await this.sendHelp(msg);
-                    break;
-                default:
-                    logger.warn(`Command tidak dikenal: ${command}`);
-                    break;
+            // Special case for help menu
+            if (command === 'menu' || command === 'help') {
+                logger.info('Menjalankan command help');
+                return await this.sendHelp(msg);
+            }
+
+            const cmdConfig = this.commands.get(command);
+
+            if (cmdConfig) {
+                const { module, method } = cmdConfig;
+                if (typeof module[method] === 'function') {
+                    logger.info(`Menjalankan command ${this.prefix}${command} via ${module.constructor.name}.${method}`);
+                    await module[method](msg, this.sock, body);
+                } else {
+                    logger.error(`Method ${method} not found in module for command ${command}`);
+                }
+            } else {
+                logger.warn(`Command tidak dikenal: ${command}`);
             }
         } catch (error) {
             logger.error(`Error executing command ${command}:`, error);
@@ -335,32 +333,89 @@ _Bot by vazul76 - v2.0.0_`;
         logger.success('Help message sent');
     }
 
+    displayBanner() {
+        console.clear();
+
+        // Build command list string
+        let commandLines = [];
+        const uniqueCommands = [];
+        const seenMethods = new Set();
+
+        // Filter out aliases for display if they point to same method in same module
+        this.commands.forEach((cfg, name) => {
+            const key = `${cfg.module.constructor.name}:${cfg.method}`;
+            if (!seenMethods.has(key)) {
+                uniqueCommands.push({ name, description: cfg.description });
+                seenMethods.add(key);
+            }
+        });
+
+        // Format command list for banner
+        const totalCommands = uniqueCommands.length;
+        const half = Math.ceil(totalCommands / 2);
+
+        for (let i = 0; i < half; i++) {
+            const cmd1 = uniqueCommands[i];
+            const cmd2 = uniqueCommands[i + half];
+
+            const line1 = cmd1 ? `${chalk.yellow('•')} ${chalk.white(this.prefix + cmd1.name.padEnd(8))} ${chalk.gray(cmd1.description.substring(0, 20).padEnd(20))}` : '';
+            const line2 = cmd2 ? `${chalk.yellow('•')} ${chalk.white(this.prefix + cmd2.name.padEnd(8))} ${chalk.gray(cmd2.description.substring(0, 20).padEnd(20))}` : '';
+
+            commandLines.push(`${chalk.cyan('║')}    ${line1}  ${line2}   ${chalk.cyan('║')}`);
+        }
+
+        const bannerTop = `
+${chalk.cyan('╔════════════════════════════════════════════════════════════════════════╗')}
+${chalk.cyan('║')}                                                                        ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.blue.bold('██╗   ██╗')}${chalk.white.bold('      ██╗   ██╗██╗     ████████╗██╗███╗   ███╗ █████╗ ████████╗███████╗')}    ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.blue.bold('██║   ██║')}${chalk.white.bold('      ██║   ██║██║     ╚══██╔══╝██║████╗ ████║██╔══██╗╚══██╔══╝██╔════╝')}    ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.blue.bold('██║   ██║')}${chalk.white.bold('█████╗██║   ██║██║        ██║   ██║██╔████╔██║███████║   ██║   █████╗  ')}    ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.blue.bold('╚██╗ ██╔╝')}${chalk.white.bold('╚════╝██║   ██║██║        ██║   ██║██║╚██╔╝██║██╔══██║   ██║   ██╔══╝  ')}    ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.blue.bold(' ╚████╔╝ ')}${chalk.white.bold('      ╚██████╔╝███████╗   ██║   ██║██║ ╚═╝ ██║██║  ██║   ██║   ███████╗')}    ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.blue.bold('  ╚═══╝  ')}${chalk.white.bold('       ╚═════╝ ╚══════╝   ╚═╝   ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝')}    ${chalk.cyan('║')}
+${chalk.cyan('║')}                                                                        ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.yellow('»')} ${chalk.white.bold('Version:')} ${chalk.green('2.3.2')}                                              ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.yellow('»')} ${chalk.white.bold('Author :')} ${chalk.green('vazul76')}                                              ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.yellow('»')} ${chalk.white.bold('Status :')} ${chalk.green.bold('ONLINE')}                                               ${chalk.cyan('║')}
+${chalk.cyan('║')}                                                                        ${chalk.cyan('║')}
+${chalk.cyan('╠════════════════════════════════════════════════════════════════════════╣')}
+${chalk.cyan('║')}    ${chalk.magenta.bold('AVAILABLE COMMANDS:')}                        ${chalk.cyan('║')}`;
+
+        const bannerBottom = `${chalk.cyan('╚════════════════════════════════════════════════════════════════════════╝')}
+        `;
+
+        console.log(bannerTop);
+        commandLines.forEach(line => console.log(line));
+        console.log(bannerBottom);
+    }
+
     startHealthChecks() {
+
         // Schedule daily health check at 8:00 AM
         const scheduleNextCheck = () => {
             const now = new Date();
             const next = new Date();
             next.setHours(8, 0, 0, 0); // 8:00 AM
-            
+
             // If 8 AM already passed today, schedule for tomorrow
             if (now.getHours() >= 8) {
                 next.setDate(next.getDate() + 1);
             }
-            
+
             const timeUntilNext = next.getTime() - now.getTime();
-            
+
             setTimeout(async () => {
                 logger.info('Running scheduled health check (8:00 AM)...');
                 const results = await healthChecker.checkAll();
                 logger.info(healthChecker.formatReport(results));
-                
+
                 // Send report to admin (including warnings)
                 await healthChecker.sendReport(results);
-                
+
                 // Schedule next check
                 scheduleNextCheck();
             }, timeUntilNext);
-            
+
             const hours = Math.floor(timeUntilNext / (1000 * 60 * 60));
             const minutes = Math.floor((timeUntilNext % (1000 * 60 * 60)) / (1000 * 60));
             logger.info(`Next health check scheduled at 8:00 AM (in ${hours}h ${minutes}m)`);

@@ -16,6 +16,11 @@ const CRYPTO_ASSETS = [
 ];
 
 class PriceCommand {
+    constructor() {
+        this.commands = [
+            { name: 'price', method: 'execute', description: 'Cek Harga Market' }
+        ];
+    }
     async execute(msg, sock) {
         try {
             await helpers.reactCommandReceived(sock, msg);

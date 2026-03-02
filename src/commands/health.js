@@ -6,6 +6,11 @@ const util = require('util');
 const execPromise = util.promisify(exec);
 
 class HealthCommand {
+    constructor() {
+        this.commands = [
+            { name: 'health', method: 'execute', description: 'Cek Kesehatan Bot' }
+        ];
+    }
     async execute(msg, sock, messageBody) {
         try {
             logger.info('Memproses command /health');
@@ -22,7 +27,7 @@ class HealthCommand {
             await helpers.reactProcessing(sock, msg);
 
             const results = await healthChecker.checkAll();
-            
+
             // Send detailed report
             await healthChecker.sendReport(results);
 
@@ -54,20 +59,20 @@ class HealthCommand {
 
             await helpers.reactSuccess(sock, msg);
             await helpers.replyWithTyping(sock, msg, message, 1500);
-            
+
             logger.info('yt-dlp binary updated successfully');
 
         } catch (error) {
             logger.error('Error updating yt-dlp:', error);
             await helpers.reactError(sock, msg);
-            
+
             let errorMsg = '❌ Gagal update yt-dlp!\n\n';
             if (error.message.includes('already up to date')) {
                 errorMsg = '✅ yt-dlp sudah versi terbaru!';
             } else {
                 errorMsg += `Error: ${error.message.substring(0, 200)}`;
             }
-            
+
             await helpers.replyWithTyping(sock, msg, errorMsg);
         }
     }

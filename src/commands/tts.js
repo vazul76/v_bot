@@ -3,6 +3,11 @@ const logger = require('../utils/logger');
 const helpers = require('../utils/helpers');
 
 class TTSCommand {
+    constructor() {
+        this.commands = [
+            { name: 'say', method: 'createAudio', description: 'Text to Speech (Auto-detect)' }
+        ];
+    }
     async createAudio(msg, sock, messageBody) {
         try {
             logger.info('Memproses command .say');

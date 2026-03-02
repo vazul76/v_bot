@@ -9,6 +9,10 @@ class TranslateCommand {
             apiKey: config.groqApiKey
         });
 
+        this.commands = [
+            { name: 'tr', method: 'translate', description: 'Translate AI (id, en, jp)' }
+        ];
+
         this.langMap = {
             'id': 'Bahasa Indonesia',
             'en': 'English',

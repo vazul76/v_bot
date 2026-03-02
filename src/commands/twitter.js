@@ -9,6 +9,11 @@ class TwitterDownloader {
         this.tempDir = path.join(__dirname, '../../temp');
         this.maxMediaSize = 100 * 1024 * 1024; // 100MB
 
+        this.commands = [
+            { name: 'twitter', method: 'downloadMedia', description: 'Twitter/X Video/Photo' },
+            { name: 'x', method: 'downloadMedia', description: 'Twitter/X Video/Photo (Alias)' }
+        ];
+
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
@@ -35,7 +40,7 @@ class TwitterDownloader {
             }
 
             logger.info(`Downloading from: ${url}`);
-            
+
             await helpers.reactProcessing(sock, msg);
 
             const outputTemplate = path.join(this.tempDir, `twitter_media_${Date.now()}.%(ext)s`);
@@ -71,7 +76,7 @@ class TwitterDownloader {
 
             logger.info('Mengirim media...');
             await helpers.simulateTyping(sock, msg, 1500);
-            
+
             if (ext === '.mp4') {
                 await helpers.replyVideoWithTyping(sock, msg, mediaBuffer);
             } else {

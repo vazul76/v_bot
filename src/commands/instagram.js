@@ -9,6 +9,10 @@ class InstagramDownloader {
         this.tempDir = path.join(__dirname, '../../temp');
         this.maxMediaSize = 100 * 1024 * 1024;
 
+        this.commands = [
+            { name: 'ig', method: 'downloadMedia', description: 'Instagram Video/Photo' }
+        ];
+
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
@@ -35,7 +39,7 @@ class InstagramDownloader {
             }
 
             logger.info(`Downloading from: ${url}`);
-            
+
             await helpers.reactProcessing(sock, msg);
 
             const timestamp = Date.now();
@@ -54,7 +58,7 @@ class InstagramDownloader {
             }
 
             tempFilePath = path.join(this.tempDir, files[files.length - 1]);
-            
+
             const stats = fs.statSync(tempFilePath);
             logger.info(`Media size: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
 
@@ -65,17 +69,17 @@ class InstagramDownloader {
 
             const mediaBuffer = fs.readFileSync(tempFilePath);
             const ext = path.extname(tempFilePath).toLowerCase();
-            
+
             logger.info('Mengirim media...');
             await helpers.simulateTyping(sock, msg, 1500);
-            
+
             if (ext === '.mp4') {
-                    // ✅ REPLY KE USER (VIDEO)
-                    await helpers.replyVideoWithTyping(sock, msg, mediaBuffer);
-                } else {
-                    // ✅ REPLY KE USER (IMAGE)
-                    await helpers.replyImageWithTyping(sock, msg, mediaBuffer);
-                }
+                // ✅ REPLY KE USER (VIDEO)
+                await helpers.replyVideoWithTyping(sock, msg, mediaBuffer);
+            } else {
+                // ✅ REPLY KE USER (IMAGE)
+                await helpers.replyImageWithTyping(sock, msg, mediaBuffer);
+            }
 
             await helpers.reactSuccess(sock, msg);
             logger.success('Media berhasil dikirim!');

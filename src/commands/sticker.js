@@ -19,6 +19,12 @@ class StickerCommand {
         this.authorName = 'vazul76';
         this.tempDir = path.join(__dirname, '../../temp');
 
+        this.commands = [
+            { name: 's', method: 'createSticker', description: 'Gambar/Video → Sticker' },
+            { name: 'stext', method: 'createStickerWithText', description: 'Gambar → Sticker + Teks' },
+            { name: 'toimg', method: 'convertStickerToImage', description: 'Sticker → Gambar/Video' }
+        ];
+
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
@@ -177,7 +183,7 @@ class StickerCommand {
                 logger.info('Sending animated sticker as webp...');
 
                 // ✅ REPLY KE USER
-                await helpers.replyDocumentWithTyping(sock, msg, buffer, 'sticker-animated.webp', 'image/webp', '✅ Animated sticker converted', 1500);
+                await helpers.replyDocumentWithTyping(sock, msg, buffer, 'sticker-animated.webp', 'image/webp',  1500);
 
             } else {
                 logger.info('Converting to PNG...');

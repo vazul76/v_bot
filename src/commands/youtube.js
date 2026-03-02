@@ -10,6 +10,11 @@ class YouTubeDownloader {
         this.maxAudioSize = 16 * 1024 * 1024;
         this.maxVideoSize = 100 * 1024 * 1024;
 
+        this.commands = [
+            { name: 'ytmp3', method: 'downloadAudio', description: 'YouTube → MP3' },
+            { name: 'yt', method: 'downloadVideo', description: 'YouTube → Video' }
+        ];
+
         if (!fs.existsSync(this.tempDir)) {
             fs.mkdirSync(this.tempDir, { recursive: true });
         }
@@ -40,14 +45,14 @@ class YouTubeDownloader {
                 return helpers.replyWithTyping(sock, msg, '❌ Format: /ytmp3 [link youtube]\n\n💡 Contoh:\n/ytmp3 https://www.youtube.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link YouTube dengan /ytmp3');
             }
 
-            if (! this.isValidYouTubeURL(url)) {
+            if (!this.isValidYouTubeURL(url)) {
                 logger.warn('URL YouTube tidak valid');
                 await helpers.reactError(sock, msg);
                 return helpers.replyWithTyping(sock, msg, '❌ Link YouTube tidak valid!\n\n✅ Gunakan link dari youtube.com atau youtu.be');
             }
 
             logger.info(`Downloading audio from: ${url}`);
-            
+
             await helpers.reactProcessing(sock, msg);
 
             const outputTemplate = path.join(this.tempDir, `yt_audio_${Date.now()}.%(ext)s`);
@@ -81,7 +86,7 @@ class YouTubeDownloader {
             const audioBuffer = fs.readFileSync(tempFilePath);
 
             logger.info('Mengirim audio...');
-            
+
             // ✅ REPLY KE USER
             await helpers.replyAudioWithTyping(sock, msg, audioBuffer, 1500);
 
@@ -113,7 +118,7 @@ class YouTubeDownloader {
 
             const url = await this.extractURL(messageBody, msg);
 
-            if (! url) {
+            if (!url) {
                 logger.warn('URL tidak ditemukan');
                 await helpers.reactError(sock, msg);
                 return helpers.replyWithTyping(sock, msg, '❌ Format: /yt [link youtube]\n\n💡 Contoh:\n/yt https://www.youtube.com/watch?v=xxxxx\n\nAtau reply pesan yang ada link YouTube dengan /yt');
@@ -126,7 +131,7 @@ class YouTubeDownloader {
             }
 
             logger.info(`Downloading video from: ${url}`);
-            
+
             await helpers.reactProcessing(sock, msg);
 
             const outputTemplate = path.join(this.tempDir, `yt_video_${Date.now()}.%(ext)s`);
@@ -140,7 +145,7 @@ class YouTubeDownloader {
                     output: outputTemplate
                 });
             } catch (dlError) {
-                if (! fs.existsSync(tempFilePath) || fs.statSync(tempFilePath).size === 0) {
+                if (!fs.existsSync(tempFilePath) || fs.statSync(tempFilePath).size === 0) {
                     throw dlError;
                 }
                 logger.warn('yt-dlp exited with error but file downloaded');
@@ -162,7 +167,7 @@ class YouTubeDownloader {
             const videoBuffer = fs.readFileSync(tempFilePath);
 
             logger.info('Mengirim video...');
-            
+
             // ✅ REPLY KE USER (VIDEO AS PREVIEW!)
             await helpers.replyVideoWithTyping(sock, msg, videoBuffer);
 

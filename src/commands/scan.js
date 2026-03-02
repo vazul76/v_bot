@@ -11,6 +11,9 @@ const MAX_DIRECT_UPLOAD = 32 * 1024 * 1024; // 32MB
 class ScanCommand {
     constructor() {
         this.apiKey = config.vtApiKey;
+        this.commands = [
+            { name: 'scan', method: 'handle', description: 'Scan VirusTotal (File/URL/Hash)' }
+        ];
     }
 
     async handle(msg, sock, body) {
@@ -53,13 +56,13 @@ class ScanCommand {
     getMediaTarget(msg, quoted) {
         // ✅ FIX: Handle documentWithCaptionMessage dan message types lain dengan caption
         const hasMedia = (m) => {
-            if (! m) return false;
-            
+            if (!m) return false;
+
             // Check direct message types
             if (m.documentMessage || m.imageMessage || m.videoMessage || m.stickerMessage || m.audioMessage) {
                 return true;
             }
-            
+
             // ✅ NEW:  Check caption wrapper messages
             if (m.documentWithCaptionMessage?.message?.documentMessage) {
                 return true;
@@ -70,18 +73,18 @@ class ScanCommand {
             if (m.videoWithCaptionMessage?.message?.videoMessage) {
                 return true;
             }
-            
+
             return false;
         };
 
         const extractMedia = (m) => {
             if (!m) return null;
-            
+
             // Direct messages
             if (m.documentMessage || m.imageMessage || m.videoMessage || m.stickerMessage || m.audioMessage) {
                 return m;
             }
-            
+
             // ✅ NEW: Extract from caption wrappers
             if (m.documentWithCaptionMessage?.message) {
                 return m.documentWithCaptionMessage.message;
@@ -92,7 +95,7 @@ class ScanCommand {
             if (m.videoWithCaptionMessage?.message) {
                 return m.videoWithCaptionMessage.message;
             }
-            
+
             return null;
         };
 
@@ -112,7 +115,7 @@ class ScanCommand {
             const extractedMessage = extractMedia(quoted.message);
             if (extractedMessage) {
                 return {
-                    key:  {
+                    key: {
                         remoteJid: msg.key.remoteJid,
                         id: quoted.id,
                         fromMe: false,
@@ -129,9 +132,9 @@ class ScanCommand {
     async scanFile(targetMsg, originalMsg, sock) {
         try {
             await helpers.reactProcessing(sock, originalMsg);
-            
+
             const buffer = await helpers.downloadMedia(sock, targetMsg);
-            
+
             if (!buffer) {
                 await helpers.replyWithTyping(sock, originalMsg, '❌ Tidak bisa mengambil media. Kirim ulang file atau reply dengan /scan.');
                 return await helpers.reactError(sock, originalMsg);
@@ -160,7 +163,7 @@ class ScanCommand {
             }
 
             const analysisId = await this.uploadFile(buffer, fileName);
-            if (! analysisId) {
+            if (!analysisId) {
                 await helpers.replyWithTyping(sock, originalMsg, '❌ Upload ke VirusTotal gagal.');
                 return await helpers.reactError(sock, originalMsg);
             }
@@ -200,7 +203,7 @@ class ScanCommand {
         const existing = await this.safeGetUrlReport(encodedUrl);
         if (existing) {
             const text = this.formatReport(existing.attributes?.last_analysis_stats, existing.attributes?.last_analysis_results, {
-                title:  `URL: ${url}`,
+                title: `URL: ${url}`,
                 type: 'URL',
                 size: '-',
                 link: `https://www.virustotal.com/gui/url/${existing.id}`
@@ -238,7 +241,7 @@ class ScanCommand {
         logger.info(`Scanning by hash: ${hash}`);
         const report = await this.safeGetFileReport(hash);
 
-        if (! report) {
+        if (!report) {
             await helpers.replyWithTyping(sock, msg, '❌ Hash tidak ditemukan di VirusTotal. Coba upload file-nya dengan /scan file.');
             return await helpers.reactError(sock, msg);
         }
@@ -322,7 +325,7 @@ class ScanCommand {
             const vtMessage = error.response?.data?.error?.message;
             logger.error('Upload file failed:', {
                 status,
-                message:  vtMessage || error.message,
+                message: vtMessage || error.message,
                 code: error.code
             });
             return null;
@@ -347,7 +350,7 @@ class ScanCommand {
             return null;
         }
     }
-    
+
 
     async pollAnalysis(id) {
         const maxAttempts = 10;
@@ -364,7 +367,7 @@ class ScanCommand {
                 if (resetMs > 0) return Math.max(resetMs, minDelay);
             }
 
-            return Math.max(fallback ??  minDelay, minDelay);
+            return Math.max(fallback ?? minDelay, minDelay);
         };
 
         let delay = minDelay;
@@ -387,9 +390,9 @@ class ScanCommand {
                 const isRateLimit = error.response?.status === 429;
                 const waitMs = computeRateLimitDelay(error.response?.headers, delay);
                 logger.warn(
-                    isRateLimit ?  'Polling analysis rate-limited' : 'Polling analysis failed',
+                    isRateLimit ? 'Polling analysis rate-limited' : 'Polling analysis failed',
                     {
-                        status:  error.response?.status,
+                        status: error.response?.status,
                         message: error.message
                     }
                 );
@@ -406,7 +409,7 @@ class ScanCommand {
         const detections = (stats.malicious || 0) + (stats.suspicious || 0);
 
         const engines = this.pickEngines(results, 25);
-        const engineLines = engines.length ?  engines.join('\n') : 'Tidak ada detail engine.';
+        const engineLines = engines.length ? engines.join('\n') : 'Tidak ada detail engine.';
 
         return [
             `🧬 Detections: ${detections} / ${totalEngines || '?? '}`,
@@ -428,15 +431,15 @@ class ScanCommand {
         const CATEGORY_META = {
             malicious: { mark: '❌', label: 'malicious', weight: 4 },
             suspicious: { mark: '⚠️', label: 'suspicious', weight: 3 },
-            harmless: { mark:  '✅', label: 'clean', weight: 2 },
+            harmless: { mark: '✅', label: 'clean', weight: 2 },
             undetected: { mark: '➖', label: 'undetected', weight: 1 },
             timeout: { mark: '⏳', label: 'timeout', weight: 0 },
             failed: { mark: '❌', label: 'failed', weight: 0 },
             'type-unsupported': { mark: '🚫', label: 'unsupported', weight: 0 },
-            default: { mark: '❓', label: 'unknown', weight:  0 }
+            default: { mark: '❓', label: 'unknown', weight: 0 }
         };
 
-        const score = (cat) => (CATEGORY_META[cat]?.weight ??  CATEGORY_META.default.weight);
+        const score = (cat) => (CATEGORY_META[cat]?.weight ?? CATEGORY_META.default.weight);
 
         return entries
             .sort((a, b) => score(b.category) - score(a.category))
@@ -457,9 +460,9 @@ class ScanCommand {
 
     extractFileName(msg) {
         // ✅ FIX:  Extract fileName from documentMessage
-        return msg.message?.documentMessage?.fileName || 
-               msg.message?.documentWithCaptionMessage?.message?.documentMessage?.fileName || 
-               null;
+        return msg.message?.documentMessage?.fileName ||
+            msg.message?.documentWithCaptionMessage?.message?.documentMessage?.fileName ||
+            null;
     }
 
     isUrl(text) {
