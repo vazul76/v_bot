@@ -22,6 +22,9 @@ const weatherCommand = require('./commands/weather');
 const healthCommand = require('./commands/health');
 const priceCommand = require('./commands/price');
 const imsakiyahCommand = require('./commands/imsakiyah');
+const qrCommand = require('./commands/qr');
+const nslookupCommand = require('./commands/nslookup');
+const encodeCommand = require('./commands/encode');
 
 
 class WABot {
@@ -43,7 +46,7 @@ class WABot {
             stickerCommand, youtubeCommand, facebookCommand, tiktokCommand,
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, healthCommand,
-            priceCommand, imsakiyahCommand
+            priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand
         ];
 
         modules.forEach(module => {
@@ -287,7 +290,7 @@ class WABot {
     async sendHelp(msg) {
         await helpers.reactCommandReceived(this.sock, msg);
 
-        const helpText = `*🗿 V-ULTIMATE BOT v2.0*
+        const helpText = `*🗿 V-ULTIMATE BOT v2.3*
 
 *📌 STICKER TOOLS*
 ├ \`/s\` - Gambar/Video → Sticker
@@ -323,10 +326,14 @@ class WABot {
 *💹 MARKET*
 └ \`/price\` - Harga Crypto & Komoditas + IHSG (24h change)
 
-*💡 TIPS: *
-• Bisa reply pesan yang ada link!
+*🛠️ TOOLS*
+├ \`/qr [teks/url]\` - Generate QR Code
+├ \`/nslookup [ip/domain]\` - IP & DNS Lookup
+├ \`/encode [format] [teks]\` - Encode (base64, url, hex, binary, rot13, html)
+└ \`/decode [format] [teks]\` - Decode (format sama dengan encode)
 
-_Bot by vazul76 - v2.0.0_`;
+_Bot by vazul76 - v2.3.0_
+_Link repo bot : https://github.com/vazul76/v_bot_`;
 
         await helpers.replyWithTyping(this.sock, msg, helpText, 2000);
         await helpers.reactSuccess(this.sock, msg);

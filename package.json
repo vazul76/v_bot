@@ -1,6 +1,6 @@
 {
   "name": "v-ultimate-bot",
-  "version": "2.3.2",
+  "version": "2.3.0",
   "description": "Multi-purpose WhatsApp Bot with Baileys",
   "main": "index.js",
   "scripts": {
@@ -24,6 +24,7 @@
     "google-tts-api": "^2.0.2",
     "groq-sdk": "^0.37.0",
     "pino": "^8.16.0",
+    "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "wa-sticker-formatter": "^4.4.4",
     "yt-dlp-exec": "^1.0.2"

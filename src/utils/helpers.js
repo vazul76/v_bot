@@ -136,13 +136,30 @@ class BotHelpers {
      */
     async getQuotedMessage(msg) {
         try {
-            const quoted = msg.message?.extendedTextMessage?.contextInfo;
-            if (! quoted) return null;
+            const m = msg.message;
+            if (!m) return null;
+
+            // contextInfo bisa ada di berbagai tipe message
+            const contextInfo =
+                m.extendedTextMessage?.contextInfo ||
+                m.imageMessage?.contextInfo ||
+                m.videoMessage?.contextInfo ||
+                m.audioMessage?.contextInfo ||
+                m.documentMessage?.contextInfo ||
+                m.stickerMessage?.contextInfo ||
+                m.buttonsResponseMessage?.contextInfo ||
+                m.listResponseMessage?.contextInfo ||
+                m.templateButtonReplyMessage?.contextInfo ||
+                // Untuk pesan biasa (conversation) yang di-reply, Baileys kadang wrap ke viewOnceMessage
+                m.viewOnceMessage?.message?.extendedTextMessage?.contextInfo ||
+                null;
+
+            if (!contextInfo || !contextInfo.quotedMessage) return null;
 
             return {
-                message: quoted.quotedMessage,
-                sender: quoted.participant,
-                id: quoted.stanzaId
+                message: contextInfo.quotedMessage,
+                sender: contextInfo.participant,
+                id: contextInfo.stanzaId
             };
         } catch (error) {
             logger.error('Error getting quoted message:', error);

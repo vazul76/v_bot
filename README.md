@@ -1,15 +1,16 @@
 # 🤖 V-Ultimate-Bot
 
-[![Version](https://img.shields.io/badge/version-2.3.2-blue.svg)](https://github.com/vazul76/v_bot)
+[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/vazul76/v_bot)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D%2018.x-green.svg)](https://nodejs.org/)
 [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-brightgreen.svg)](https://github.com/WhiskeySockets/Baileys)
 
 **V-Ultimate-Bot** adalah WhatsApp Bot Utility yang dibangun dengan **@whiskeysockets/baileys**. Bot ini menggabungkan berbagai fitur canggih mulai dari Sticker Tools, Social Media Downloader (YT, FB, TikTok, IG, Twitter/X), hingga berbagai utility tools.
 
-> **🔄 Update v2.3.2**: 
-> - ✅ Prefix diubah dari `.` menjadi `/` untuk semua command
-> - ✅ Weather feature dengan BMKG API (gratis, no API key)
+> **🔄 Update v2.4.0**: 
+> - ✅ Tambah `/qr` — QR Code Generator
+> - ✅ Tambah `/nslookup` — IP & DNS Lookup
+> - ✅ Fix `/price` goldprice.org → Yahoo Finance
 
 ---
 
@@ -32,6 +33,9 @@
 - **Translate AI (Groq)**: Terjemahkan teks ke berbagai bahasa (Indo, Inggris, Jepang) dengan AI yang natural.
 - **Weather Info (BMKG)**: Cek prakiraan cuaca real-time untuk wilayah DI Yogyakarta dengan data resmi BMKG.
 - **Market Price**: Cek harga crypto populer, komoditas (Gold/Silver), dan IHSG dengan perubahan 24 jam.
+- **QR Code Generator**: Buat QR Code dari teks atau URL apapun, langsung dikirim sebagai gambar.
+- **IP & DNS Lookup**: Cek info geolokasi IP, ISP, ASN, dan DNS records (A, MX, NS, TXT, CNAME) untuk IP atau domain.
+- **Encode / Decode**: Konversi teks dengan 6 format: Base64, URL, Hex, Binary, ROT13, HTML Entity.
 - **WhatsApp Poll**: Buat voting/polling langsung di grup WhatsApp.
 - **VirusTotal Scan**: Scan file, URL, atau hash untuk mendeteksi malware menggunakan API VirusTotal.
 
@@ -48,10 +52,12 @@
 - **[@whiskeysockets/baileys](https://github.com/WhiskeySockets/Baileys)** - WhatsApp Web API
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Universal Video Downloader (YouTube, TikTok, Instagram, Twitter, Facebook)
 - **[BMKG API](https://api.bmkg.go.id/)** - DI Yogyakarta Weather Data (Free, No API Key)
+- **[ip-api.com](https://ip-api.com/)** - IP Geolocation & ISP Info (Free, No API Key)
 - **[Groq SDK](https://groq.com/)** - AI Translation (Llama 3.3)
 - **[wa-sticker-formatter](https://github.com/AlenSaito1/wa-sticker-formatter)** - Sticker Creator
 - **[canvas](https://github.com/Automattic/node-canvas)** - Image Processing
 - **[sharp](https://github.com/lovell/sharp)** - High Performance Image Processing
+- **[qrcode](https://github.com/soldair/node-qrcode)** - QR Code Generator
 - **[VirusTotal API](https://www.virustotal.com/)** - Security Scanning Engine
 
 ---
@@ -137,6 +143,10 @@ Gunakan prefix `/` (slash) diikuti oleh perintah:
 | `/twitter` / `/x [Link]` | Download Media Twitter/X (Video/Foto) | Max 100MB |
 | `/cuaca [Lokasi]` | Cek Cuaca BMKG (DI Yogyakarta) | 516 lokasi |
 | `/price` | Harga crypto populer, komoditas, IHSG (24h change) | - |
+| `/qr [Teks/URL]` | Generate QR Code dari teks atau URL | Maks 1000 char |
+| `/nslookup [IP/Domain]` | IP Geolocation, ISP, ASN, DNS records | - |
+| `/encode [format] [Teks]` | Encode teks — base64, url, hex, binary, rot13, html | Maks 2000 char |
+| `/decode [format] [Teks]` | Decode teks — format sama dengan encode | Maks 2000 char |
 | `/health` | Check health semua service bot | - |
 | `/health update` | Update yt-dlp binary | - |
 | `/poll [Tanya],[Opsi]` | Buat Polling WhatsApp | - |
@@ -163,6 +173,9 @@ Gunakan prefix `/` (slash) diikuti oleh perintah:
 │   │   ├── poll.js        # WhatsApp Poll feature
 │   │   ├── tts.js         # Text-to-Speech (Auto-detect language)
 │   │   ├── translate.js   # AI Translator
+│   │   ├── qr.js          # QR Code Generator
+│   │   ├── nslookup.js    # IP/Domain Lookup & DNS Info
+│   │   ├── encode.js      # Encode/Decode (base64, url, hex, binary, rot13, html)
 │   │   └── scan.js        # VirusTotal Scanner
 │   ├── utils/             # Helper & Logger utilities
 │   └── bot.js             # Logic utama WhatsApp Bot (Baileys)
@@ -253,6 +266,13 @@ Proyek ini dilisensikan di bawah **MIT License**. Lihat file [LICENSE](LICENSE) 
 ---
 
 ## 📝 Changelog
+
+### v2.4.0 (March 2026)
+- ✅ Tambah command `/qr` — generate QR Code dari teks/URL, dikirim sebagai gambar
+- ✅ Tambah command `/nslookup` — IP geolocation, ISP, ASN + full DNS records (A, AAAA, MX, NS, TXT, CNAME)
+- ✅ Tambah command `/encode` & `/decode` — 6 format: Base64, URL, Hex, Binary, ROT13, HTML Entity
+- ✅ Fix `/price` — migrasi goldprice.org (403) ke Yahoo Finance `GC=F`/`SI=F`
+- ✅ Fix `/price` — tampilan IHSG sekarang benar dalam IDR (bukan salah convert ke USD)
 
 ### v2.3.2 (February 2026)
 - ✅ Prefix diubah dari `.` ke `/` untuk semua command

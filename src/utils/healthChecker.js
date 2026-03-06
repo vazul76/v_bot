@@ -136,6 +136,86 @@ class HealthChecker {
             this.failedChecks.add('tts');
         }
 
+        // Test CoinGecko (crypto price)
+        try {
+            const axios = require('axios');
+            const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd', { timeout: 8000 });
+            if (response.data?.bitcoin?.usd) {
+                results.push({ name: 'CoinGecko API (Crypto)', status: '✅', error: null });
+                this.failedChecks.delete('coingecko');
+            } else {
+                throw new Error('Invalid response format');
+            }
+        } catch (error) {
+            results.push({ name: 'CoinGecko API (Crypto)', status: '❌', error: error.message });
+            this.failedChecks.add('coingecko');
+        }
+
+        // Test Yahoo Finance (gold/silver/IHSG)
+        try {
+            const axios = require('axios');
+            const response = await axios.get('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=1d&range=1d', {
+                timeout: 8000,
+                headers: { 'User-Agent': 'Mozilla/5.0' }
+            });
+            if (response.data?.chart?.result?.[0]) {
+                results.push({ name: 'Yahoo Finance (Gold/Silver/IHSG)', status: '✅', error: null });
+                this.failedChecks.delete('yahoo');
+            } else {
+                throw new Error('Invalid response format');
+            }
+        } catch (error) {
+            results.push({ name: 'Yahoo Finance (Gold/Silver/IHSG)', status: '❌', error: error.message });
+            this.failedChecks.add('yahoo');
+        }
+
+        // Test ip-api.com (nslookup)
+        try {
+            const axios = require('axios');
+            const response = await axios.get('http://ip-api.com/json/8.8.8.8?fields=status,country,isp', { timeout: 5000 });
+            if (response.data?.status === 'success') {
+                results.push({ name: 'ip-api.com (NSLookup)', status: '✅', error: null });
+                this.failedChecks.delete('ipapi');
+            } else {
+                throw new Error('Invalid response');
+            }
+        } catch (error) {
+            results.push({ name: 'ip-api.com (NSLookup)', status: '❌', error: error.message });
+            this.failedChecks.add('ipapi');
+        }
+
+        // Test DNS resolution (nslookup)
+        try {
+            const dns = require('dns').promises;
+            await dns.resolve4('google.com');
+            results.push({ name: 'DNS Resolution (NSLookup)', status: '✅', error: null });
+            this.failedChecks.delete('dns');
+        } catch (error) {
+            results.push({ name: 'DNS Resolution (NSLookup)', status: '❌', error: error.message });
+            this.failedChecks.add('dns');
+        }
+
+        // Test QR Code library
+        try {
+            const QRCode = require('qrcode');
+            await QRCode.toBuffer('test', { type: 'png', width: 64 });
+            results.push({ name: 'QR Code Generator', status: '✅', error: null });
+            this.failedChecks.delete('qrcode');
+        } catch (error) {
+            results.push({ name: 'QR Code Generator', status: '❌', error: error.message });
+            this.failedChecks.add('qrcode');
+        }
+
+        // Test Encode/Decode (local — no API)
+        try {
+            const b64 = Buffer.from('test', 'utf8').toString('base64');
+            const decoded = Buffer.from(b64, 'base64').toString('utf8');
+            if (decoded !== 'test') throw new Error('Encode/decode mismatch');
+            results.push({ name: 'Encode/Decode (local)', status: '✅', error: null });
+        } catch (error) {
+            results.push({ name: 'Encode/Decode (local)', status: '❌', error: error.message });
+        }
+
         return results;
     }
 
@@ -176,7 +256,19 @@ class HealthChecker {
         if (failed.length > 0) {
             message += `\n\n⚠️ *Action Required:*\n`;
             if (this.failedChecks.has('youtube') || this.failedChecks.has('tiktok')) {
-                message += '• Update yt-dlp binary:\n  `/health update`';
+                message += '• Update yt-dlp: `/health update`\n';
+            }
+            if (this.failedChecks.has('coingecko')) {
+                message += '• CoinGecko mungkin rate-limit, coba lagi nanti\n';
+            }
+            if (this.failedChecks.has('yahoo')) {
+                message += '• Yahoo Finance tidak merespons, cek koneksi\n';
+            }
+            if (this.failedChecks.has('ipapi')) {
+                message += '• ip-api.com tidak merespons, cek koneksi\n';
+            }
+            if (this.failedChecks.has('qrcode')) {
+                message += '• QR Code: jalankan `npm install qrcode`\n';
             }
         }
 
