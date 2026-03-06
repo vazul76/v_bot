@@ -3,7 +3,6 @@ const logger = require('../utils/logger');
 const helpers = require('../utils/helpers');
 
 const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price';
-const GOLDPRICE_URL = 'https://data-asg.goldprice.org/dbXRates/USD';
 const YAHOO_CHART_URL = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 const FX_URL = 'https://open.er-api.com/v6/latest/USD';
 
@@ -82,41 +81,40 @@ class PriceCommand {
     }
 
     async fetchGoldQuotes() {
-        const response = await axios.get(GOLDPRICE_URL, {
-            timeout: 10000,
-            headers: {
-                'User-Agent': 'Mozilla/5.0'
-            }
-        });
-
-        const item = response?.data?.items?.[0];
-        const goldPrice = item?.xauPrice;
-        const goldChange = item?.chgXau;
-        const goldChangePercent = item?.pcXau;
-        const silverPrice = item?.xagPrice;
-        const silverChange = item?.chgXag;
-        const silverChangePercent = item?.pcXag;
+        const assets = [
+            { symbol: 'GC=F', label: 'GOLD' },
+            { symbol: 'SI=F', label: 'SILVER' }
+        ];
 
         const quotes = [];
 
-        if (typeof goldPrice === 'number' && typeof goldChange === 'number' && typeof goldChangePercent === 'number') {
-            quotes.push({
-                label: 'GOLD',
-                price: goldPrice,
-                change: goldChange,
-                changePercent: goldChangePercent,
-                currency: 'USD'
-            });
-        }
+        for (const asset of assets) {
+            try {
+                const url = `${YAHOO_CHART_URL}${encodeURIComponent(asset.symbol)}?interval=1d&range=2d`;
+                const response = await axios.get(url, {
+                    timeout: 10000,
+                    headers: { 'User-Agent': 'Mozilla/5.0' }
+                });
 
-        if (typeof silverPrice === 'number' && typeof silverChange === 'number' && typeof silverChangePercent === 'number') {
-            quotes.push({
-                label: 'SILVER',
-                price: silverPrice,
-                change: silverChange,
-                changePercent: silverChangePercent,
-                currency: 'USD'
-            });
+                const meta = response?.data?.chart?.result?.[0]?.meta;
+                const price = meta?.regularMarketPrice;
+                const previousClose = meta?.chartPreviousClose;
+
+                if (typeof price !== 'number' || typeof previousClose !== 'number') continue;
+
+                const change = price - previousClose;
+                const changePercent = (change / previousClose) * 100;
+
+                quotes.push({
+                    label: asset.label,
+                    price,
+                    change,
+                    changePercent,
+                    currency: 'USD'
+                });
+            } catch (e) {
+                logger.warn(`Failed to fetch ${asset.label} from Yahoo:`, e.message);
+            }
         }
 
         return quotes.length ? quotes : null;
@@ -182,9 +180,8 @@ class PriceCommand {
     }
 
     formatChange(changeAbs, currency, usdToIdr) {
-        if (currency === 'IDR' && typeof usdToIdr === 'number') {
-            const usdValue = changeAbs / usdToIdr;
-            return this.formatCurrency(usdValue, 'USD');
+        if (currency === 'IDR') {
+            return this.formatCurrency(changeAbs, 'IDR');
         }
 
         return this.formatCurrency(changeAbs, currency);
@@ -201,8 +198,7 @@ class PriceCommand {
         }
 
         if (currency === 'IDR') {
-            const usdValue = price / usdToIdr;
-            return `${this.formatCurrency(usdValue, 'USD')} / ${this.formatCurrency(price, 'IDR')}`;
+            return this.formatCurrency(price, 'IDR');
         }
 
         return this.formatCurrency(price, currency);
