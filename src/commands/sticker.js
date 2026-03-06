@@ -109,13 +109,28 @@ class StickerCommand {
             }
 
             const messageType = this.getMediaType(msg);
-            if (messageType === 'video') {
-                logger.warn('Media adalah video');
-                await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ /stext hanya mendukung gambar!\n\n💡 Untuk video, gunakan /s tanpa text');
-            }
 
             await helpers.reactProcessing(sock, msg);
+
+            if (messageType === 'video') {
+                logger.info('Menambahkan teks ke video (animated)...');
+                const videoWithText = await this.addTextToVideo(media, text);
+
+                logger.info('Membuat animated sticker...');
+                const animSticker = new Sticker(videoWithText, {
+                    pack: this.packName,
+                    author: this.authorName,
+                    type: StickerTypes.FULL,
+                    quality: 50,
+                    animated: true
+                });
+
+                const animWebp = await animSticker.toBuffer();
+                await helpers.replyStickerWithTyping(sock, msg, animWebp, 1500);
+                await helpers.reactSuccess(sock, msg);
+                logger.success('Animated sticker dengan teks berhasil dikirim!');
+                return;
+            }
 
             logger.info('Menambahkan teks ke gambar...');
             const imageBuffer = await this.addTextToImage(media, text);
@@ -303,7 +318,7 @@ class StickerCommand {
         const y = Math.min(canvasSize - 20, bottomEdge - (fontSize * 0.5) - 5);
 
         // Draw Stroke (Thicker for better visibility without background)
-        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = 'transparent'; // No background, rely on stroke for contrast
         ctx.lineWidth = Math.max(fontSize / 6, 4);
         ctx.lineJoin = 'round';
         ctx.strokeText(text, canvasSize / 2, y);
@@ -313,6 +328,48 @@ class StickerCommand {
         ctx.fillText(text, canvasSize / 2, y);
 
         return canvas.toBuffer('image/png');
+    }
+
+    async addTextToVideo(videoBuffer, text) {
+        const { execFile } = require('child_process');
+        const { promisify } = require('util');
+        const execFilePromise = promisify(execFile);
+
+        const id = Date.now();
+        const inputPath = path.join(this.tempDir, `stext_in_${id}.mp4`);
+        const outputPath = path.join(this.tempDir, `stext_out_${id}.webm`);
+        const textFilePath = path.join(this.tempDir, `stext_txt_${id}.txt`);
+
+        fs.writeFileSync(inputPath, videoBuffer);
+        fs.writeFileSync(textFilePath, text, 'utf8');
+
+        const fontAvailable = fs.existsSync(fontPath);
+        // Scale ke 512x512 dengan padding transparan (yuva420p), lalu overlay teks
+        // format=yuva420p harus sebelum pad agar alpha tersedia
+        const scaleFilter = 'scale=512:512:force_original_aspect_ratio=decrease,format=yuva420p,pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000';
+        let drawtext = `drawtext=textfile=${textFilePath}:fontcolor=white:fontsize=h/9:borderw=5:bordercolor=black:x=(w-text_w)/2:y=h-text_h-h*0.05`;
+        if (fontAvailable) drawtext += `:fontfile=${fontPath}`;
+
+        try {
+            await execFilePromise('/usr/bin/ffmpeg', [
+                '-i', inputPath,
+                '-vf', `${scaleFilter},${drawtext}`,
+                '-an',
+                '-c:v', 'libvpx-vp9',
+                '-pix_fmt', 'yuva420p',
+                '-auto-alt-ref', '0',
+                '-crf', '30',
+                '-b:v', '0',
+                '-y',
+                outputPath
+            ], { timeout: 60000 });
+
+            return fs.readFileSync(outputPath);
+        } finally {
+            for (const f of [inputPath, outputPath, textFilePath]) {
+                try { fs.unlinkSync(f); } catch {}
+            }
+        }
     }
 
     calculateFontSize(text) {
