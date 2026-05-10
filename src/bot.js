@@ -25,7 +25,6 @@ const imsakiyahCommand = require('./commands/imsakiyah');
 const qrCommand = require('./commands/qr');
 const nslookupCommand = require('./commands/nslookup');
 const encodeCommand = require('./commands/encode');
-const callCommand = require('./commands/call');
 
 
 class WABot {
@@ -47,8 +46,7 @@ class WABot {
             stickerCommand, youtubeCommand, facebookCommand, tiktokCommand,
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, healthCommand,
-            priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand,
-            callCommand
+            priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand
         ];
 
         modules.forEach(module => {
