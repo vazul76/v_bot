@@ -19,7 +19,7 @@ const ttsCommand = require('./commands/tts');
 const translateCommand = require('./commands/translate');
 const scanCommand = require('./commands/scan');
 const weatherCommand = require('./commands/weather');
-const healthCommand = require('./commands/health');
+const testCommand = require('./commands/test');
 const priceCommand = require('./commands/price');
 const imsakiyahCommand = require('./commands/imsakiyah');
 const qrCommand = require('./commands/qr');
@@ -45,7 +45,7 @@ class WABot {
         const modules = [
             stickerCommand, youtubeCommand, facebookCommand, tiktokCommand,
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
-            translateCommand, scanCommand, weatherCommand, healthCommand,
+            translateCommand, scanCommand, weatherCommand, testCommand,
             priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand
         ];
 
@@ -89,7 +89,9 @@ class WABot {
             logger: P({ level: 'silent' }),
             browser: ['V-Ultimate-Bot-Stb', 'Chrome', '121.0.0'],
             defaultQueryTimeoutMs: undefined,
-            version: [2, 3000, 1033893291] // fix 405 Connection Failure on new pairing
+            version: [2, 3000, 1033893291], // fix 405 Connection Failure on new pairing
+            markOnlineOnConnection: true, // IMPORTANT: Mark bot as online when connected
+            syncFullHistory: false
         });
 
         this.setupEventHandlers();
@@ -112,6 +114,14 @@ class WABot {
                 this.displayBanner();
                 logger.success('✅ Bot WhatsApp siap digunakan!');
                 logger.info(`${chalk.white('Prefix command:')}  ${chalk.yellow.bold(this.prefix)}`);
+
+                // Set presence to available
+                try {
+                    await this.sock.sendPresenceUpdate('available');
+                    logger.info('Presence set to available');
+                } catch (err) {
+                    logger.warn('Failed to set presence:', err.message);
+                }
 
                 // Setup health checker
                 if (this.adminNumber) {
