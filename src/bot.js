@@ -87,7 +87,7 @@ class WABot {
             auth: this.authState,
             printQRInTerminal: false,
             logger: P({ level: 'silent' }),
-            browser: ['V-Ultimate-Bot', 'Chrome', '121.0.0'],
+            browser: ['V-Ultimate-Bot-Stb', 'Chrome', '121.0.0'],
             defaultQueryTimeoutMs: undefined,
             version: [2, 3000, 1033893291] // fix 405 Connection Failure on new pairing
         });
