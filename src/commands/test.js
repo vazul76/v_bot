@@ -215,14 +215,27 @@ class TestCommand {
             const downloadLine = lines.find(line => line.startsWith('Download: ')) || '';
             const uploadLine = lines.find(line => line.startsWith('Upload: ')) || '';
 
-            const clientMatch = clientLine.match(/^Testing from\s+(.+?)\.\.\.$/);
-            const serverMatch = serverLine.match(/^Hosted by\s+(.+?)\s+\[.*\]:\s+[\d.]+\s+ms$/);
+            const clientMatch = clientLine.match(/^Testing from\s+(.+)$/);
+            const serverMatch = serverLine.match(/^Hosted by\s+(.+)$/);
             const downloadMatch = downloadLine.match(/^Download:\s+([\d.]+)\s+Mbit\/s$/);
             const uploadMatch = uploadLine.match(/^Upload:\s+([\d.]+)\s+Mbit\/s$/);
 
+            const ispName = clientMatch
+                ? clientMatch[1]
+                    .replace(/\s+\(.*\)$/, '')
+                    .replace(/\.\.\.$/, '')
+                    .trim()
+                : 'N/A';
+
+            const hostedByName = serverMatch
+                ? serverMatch[1]
+                    .replace(/\s+\[[^\]]+\]:\s+[\d.]+\s+ms$/, '')
+                    .trim()
+                : 'N/A';
+
             return {
-                hostedBy: serverMatch ? serverMatch[1].replace(/\s*\[[^\]]+\]$/, '').trim() : 'N/A',
-                isp: clientMatch ? clientMatch[1].trim() : 'N/A',
+                hostedBy: hostedByName,
+                isp: ispName,
                 download: downloadMatch ? `${Number(downloadMatch[1]).toFixed(2)} Mbps` : 'N/A',
                 upload: uploadMatch ? `${Number(uploadMatch[1]).toFixed(2)} Mbps` : 'N/A'
             };
