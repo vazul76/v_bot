@@ -15,8 +15,8 @@ const helpers = require('../utils/helpers');
 
 class StickerCommand {
     constructor() {
-        this.packName = 'WA Sticker Bot';
-        this.authorName = 'vazul76';
+        this.packName = 'V-Bot';
+        this.authorName = 'by vazul';
         this.tempDir = path.join(__dirname, '../../temp');
 
         this.commands = [
