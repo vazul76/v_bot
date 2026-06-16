@@ -8,8 +8,8 @@ RUN apt-get update \
    build-essential \
    libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
    libvips libvips-dev libglib2.0-dev libexpat1-dev \
+   speedtest-cli \
  && ln -s /usr/bin/python3 /usr/bin/python \
- && pip3 install --no-cache-dir speedtest-cli \
  && update-ca-certificates || true \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
@@ -35,7 +35,7 @@ RUN apt-get update \
    libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 librsvg2-2 \
    libvips libglib2.0-0 libexpat1 \
    fonts-dejavu-core fonts-noto-color-emoji \
- && pip3 install --no-cache-dir speedtest-cli \
+   speedtest-cli \
  && update-ca-certificates || true \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
