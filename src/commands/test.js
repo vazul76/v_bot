@@ -82,14 +82,25 @@ class TestCommand {
             logger.info('Memproses command /test');
             await helpers.reactCommandReceived(sock, msg);
             await helpers.reactProcessing(sock, msg);
+            const reactionDoneAt = Date.now();
 
             const [serverStats, results] = await Promise.all([
                 this.getServerStats(),
                 healthChecker.checkAll()
             ]);
+            const processingDoneAt = Date.now();
 
-            const latency = Date.now() - startedAt;
-            const report = this.buildReport(latency, serverStats, results);
+            const responsiveLatency = reactionDoneAt - startedAt;
+            const processingTime = processingDoneAt - reactionDoneAt;
+            const totalDuration = processingDoneAt - startedAt;
+
+            const report = this.buildReport({
+                responsiveLatency,
+                processingTime,
+                totalDuration,
+                serverStats,
+                results
+            });
 
             await helpers.replyWithTyping(sock, msg, report, 800);
             await helpers.reactSuccess(sock, msg);
@@ -187,12 +198,17 @@ class TestCommand {
         };
     }
 
-    buildReport(latencyMs, serverStats, results) {
+    buildReport(timingData) {
+        const { responsiveLatency, processingTime, totalDuration, serverStats, results } = timingData;
         const failed = results.filter(result => result.status === '❌');
         const warning = results.filter(result => result.status === '⚠️');
         const passed = results.filter(result => result.status === '✅');
 
-        let message = `*Latency* : ${latencyMs} ms\n\n`;
+        let message = `*⏱️ Response Time*\n`;
+        message += `├ Bot latency: ${responsiveLatency}ms\n`;
+        message += `├ Processing: ${processingTime}ms\n`;
+        message += `└ Total time: ${totalDuration}ms\n\n`;
+        
         message += `*Server Status*\n`;
         message += `*CPU* = ${serverStats.cpuUsage.toFixed(1)}%\n`;
         message += `*RAM* = ${formatSize(serverStats.memoryUsed)}/${formatSize(serverStats.memoryTotal)}\n`;

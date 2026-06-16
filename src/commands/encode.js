@@ -200,7 +200,14 @@ class EncodeCommand {
             }
 
             const truncResult = result.length > 1800 ? result.substring(0, 1800) + '\n_(dipotong, terlalu panjang)_' : result;
-            const response = `\`\`\`${truncResult}\`\`\``;
+            let response;
+            if (mode === 'encode') {
+                // Keep code block for encode (preserve formatting)
+                response = `\`\`\`${truncResult}\`\`\``;
+            } else {
+                // For decode, send plain text (normal font)
+                response = truncResult;
+            }
 
             await helpers.replyWithTyping(sock, msg, response, 800);
             await helpers.reactSuccess(sock, msg);
