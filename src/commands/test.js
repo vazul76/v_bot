@@ -203,14 +203,28 @@ class TestCommand {
 
     async getNetworkStats() {
         try {
-            const [ispData, speedData] = await Promise.all([
-                this.getISPInfo(),
-                this.getSpeedTest()
-            ]);
-            
+            const { stdout } = await execPromise('speedtest-cli', {
+                timeout: 150000,
+                maxBuffer: 1024 * 1024
+            });
+
+            const output = stdout.toString();
+            const lines = output.split('\n').map(line => line.trim()).filter(Boolean);
+            const clientLine = lines.find(line => line.startsWith('Testing from ')) || '';
+            const serverLine = lines.find(line => line.startsWith('Hosted by ')) || '';
+            const downloadLine = lines.find(line => line.startsWith('Download: ')) || '';
+            const uploadLine = lines.find(line => line.startsWith('Upload: ')) || '';
+
+            const clientMatch = clientLine.match(/^Testing from\s+(.+?)\.\.\.$/);
+            const serverMatch = serverLine.match(/^Hosted by\s+(.+?)\s+\[.*\]:\s+[\d.]+\s+ms$/);
+            const downloadMatch = downloadLine.match(/^Download:\s+([\d.]+)\s+Mbit\/s$/);
+            const uploadMatch = uploadLine.match(/^Upload:\s+([\d.]+)\s+Mbit\/s$/);
+
             return {
-                ...ispData,
-                ...speedData
+                hostedBy: serverMatch ? serverMatch[1].replace(/\s*\[[^\]]+\]$/, '').trim() : 'N/A',
+                isp: clientMatch ? clientMatch[1].trim() : 'N/A',
+                download: downloadMatch ? `${Number(downloadMatch[1]).toFixed(2)} Mbps` : 'N/A',
+                upload: uploadMatch ? `${Number(uploadMatch[1]).toFixed(2)} Mbps` : 'N/A'
             };
         } catch (error) {
             logger.warn(`Failed to retrieve network stats: ${error.message}`);
