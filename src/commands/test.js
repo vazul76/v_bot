@@ -2,6 +2,7 @@ const os = require('os');
 const { exec } = require('child_process');
 const fs = require('fs/promises');
 const util = require('util');
+const axios = require('axios');
 
 const logger = require('../utils/logger');
 const helpers = require('../utils/helpers');
@@ -119,10 +120,11 @@ class TestCommand {
     }
 
     async getServerStats() {
-        const [cpuUsage, diskUsage, memoryInfo] = await Promise.all([
+        const [cpuUsage, diskUsage, memoryInfo, networkStats] = await Promise.all([
             this.getCpuUsage(),
             this.getDiskUsage(process.cwd()),
-            this.getMemoryInfo()
+            this.getMemoryInfo(),
+            this.getNetworkStats()
         ]);
 
         return {
@@ -131,7 +133,8 @@ class TestCommand {
             memoryTotal: memoryInfo.total,
             diskUsed: diskUsage.used,
             diskTotal: diskUsage.total,
-            botRam: process.memoryUsage().rss
+            botRam: process.memoryUsage().rss,
+            networkStats
         };
     }
 
@@ -198,34 +201,144 @@ class TestCommand {
         };
     }
 
+    async getNetworkStats() {
+        try {
+            const [ispData, speedData] = await Promise.all([
+                this.getISPInfo(),
+                this.getSpeedTest()
+            ]);
+            
+            return {
+                ...ispData,
+                ...speedData
+            };
+        } catch (error) {
+            logger.warn(`Failed to retrieve network stats: ${error.message}`);
+            return {
+                hostedBy: 'N/A',
+                isp: 'N/A',
+                download: 'N/A',
+                upload: 'N/A'
+            };
+        }
+    }
+
+    async getISPInfo() {
+        try {
+            const response = await axios.get('https://ipapi.co/json/', {
+                timeout: 5000
+            });
+            
+            const data = response.data;
+            return {
+                hostedBy: data.org || 'N/A',
+                isp: data.org || 'N/A'
+            };
+        } catch (error) {
+            return {
+                hostedBy: 'N/A',
+                isp: 'N/A'
+            };
+        }
+    }
+
+    async getSpeedTest() {
+        try {
+            // Try using speedtest CLI first
+            const { stdout } = await execPromise('speedtest-cli --simple --timeout 120', {
+                timeout: 130000
+            });
+            
+            const output = stdout.trim();
+            const pingMatch = output.match(/Ping:\s*([\d.]+)/i);
+            const downloadMatch = output.match(/Download:\s*([\d.]+)/i);
+            const uploadMatch = output.match(/Upload:\s*([\d.]+)/i);
+
+            const ping = pingMatch ? Number(pingMatch[1]) : 0;
+            const download = downloadMatch ? Number(downloadMatch[1]) : 0;
+            const upload = uploadMatch ? Number(uploadMatch[1]) : 0;
+
+            if (download > 0 || upload > 0) {
+                logger.info(`Speedtest result - Ping: ${ping}ms, Download: ${download}Mbps, Upload: ${upload}Mbps`);
+                return {
+                    download: download > 0 ? `${download.toFixed(2)} Mbps` : 'N/A',
+                    upload: upload > 0 ? `${upload.toFixed(2)} Mbps` : 'N/A'
+                };
+            }
+
+            logger.warn(`Unexpected speedtest output format: ${output}`);
+            return {
+                download: 'N/A',
+                upload: 'N/A'
+            };
+        } catch (error) {
+            logger.warn(`Speedtest-cli error: ${error.message}`);
+            
+            // Fallback: simple manual speed test
+            try {
+                const testUrl = 'https://speed.cloudflare.com/__down?bytes=10000000'; // 10MB test file
+                const startTime = Date.now();
+                
+                const response = await axios.get(testUrl, {
+                    timeout: 30000,
+                    responseType: 'arraybuffer'
+                });
+                
+                const endTime = Date.now();
+                const sizeInBytes = response.data.length;
+                const durationInSeconds = (endTime - startTime) / 1000;
+                const speedMbps = (sizeInBytes * 8) / (durationInSeconds * 1000000);
+                
+                logger.warn(`Using fallback speed test: ${speedMbps.toFixed(2)} Mbps`);
+                
+                return {
+                    download: `${speedMbps.toFixed(2)} Mbps`,
+                    upload: 'N/A'
+                };
+            } catch (fallbackError) {
+                logger.warn(`Speed test fallback failed: ${fallbackError.message}`);
+                return {
+                    download: 'N/A',
+                    upload: 'N/A'
+                };
+            }
+        }
+    }
+
     buildReport(timingData) {
         const { responsiveLatency, processingTime, totalDuration, serverStats, results } = timingData;
         const failed = results.filter(result => result.status === '❌');
         const warning = results.filter(result => result.status === '⚠️');
         const passed = results.filter(result => result.status === '✅');
 
-        let message = `*⏱️ Response Time*\n`;
-        message += `├ Bot latency: ${responsiveLatency}ms\n`;
-        message += `├ Processing: ${processingTime}ms\n`;
-        message += `└ Total time: ${totalDuration}ms\n\n`;
+        let message = `*Response Time*\n`;
+        message += `Bot latency: ${responsiveLatency}ms\n`;
+        message += `Processing: ${processingTime}ms\n`;
+        message += `Total time: ${totalDuration}ms\n\n`;
         
         message += `*Server Status*\n`;
-        message += `*CPU* = ${serverStats.cpuUsage.toFixed(1)}%\n`;
-        message += `*RAM* = ${formatSize(serverStats.memoryUsed)}/${formatSize(serverStats.memoryTotal)}\n`;
-        message += `*DISK* = ${formatSize(serverStats.diskUsed)}/${formatSize(serverStats.diskTotal)}\n\n`;
+        message += `CPU = ${serverStats.cpuUsage.toFixed(1)}%\n`;
+        message += `RAM = ${formatSize(serverStats.memoryUsed)}/${formatSize(serverStats.memoryTotal)}\n`;
+        message += `DISK = ${formatSize(serverStats.diskUsed)}/${formatSize(serverStats.diskTotal)}\n\n`;
+
+        message += `*Network Status*\n`;
+        message += `Hosted By = ${serverStats.networkStats.hostedBy}\n`;
+        message += `ISP = ${serverStats.networkStats.isp}\n`;
+        message += `Download = ${serverStats.networkStats.download}\n`;
+        message += `Upload = ${serverStats.networkStats.upload}\n\n`;
 
         message += `*Bot Status*\n`;
-        message += `*RAM Usage* = ${formatSize(serverStats.botRam)}\n`;
-        message += `*Command healthy* = ${passed.length}/${results.length}\n`;
+        message += `RAM Usage = ${formatSize(serverStats.botRam)}\n`;
+        message += `Command healthy = ${passed.length}/${results.length}\n`;
         message += `*Command warning* = ${warning.length}\n`;
         message += `*Command failed* = ${failed.length}\n`;
 
         if (warning.length > 0) {
-            message += `*Warning command* = ${warning.map(result => `• ${result.name}`).join(', ')}\n`;
+            message += `*Warning command* = ${warning.map(result => `${result.name}`).join(', ')}\n`;
         }
 
         if (failed.length > 0) {
-            message += `*Failed command* = ${failed.map(result => `• ${result.name}`).join(', ')}\n`;
+            message += `*Failed command* = ${failed.map(result => `${result.name}`).join(', ')}\n`;
         }
 
         return message;

@@ -4,10 +4,12 @@ ENV NODE_ENV=${BUILD_ENV}
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
    ca-certificates wget \
-   build-essential python3 python-is-python3 pkg-config \
+   python3 python3-pip python-is-python3 pkg-config \
+   build-essential \
    libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
    libvips libvips-dev libglib2.0-dev libexpat1-dev \
  && ln -s /usr/bin/python3 /usr/bin/python \
+ && pip3 install --no-cache-dir speedtest-cli \
  && update-ca-certificates || true \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
@@ -28,11 +30,12 @@ ENV NODE_ENV=${BUILD_ENV}
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
    ca-certificates wget curl \
-   python3 python-is-python3 \
+   python3 python3-pip python-is-python3 \
    ffmpeg \
    libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 librsvg2-2 \
    libvips libglib2.0-0 libexpat1 \
    fonts-dejavu-core fonts-noto-color-emoji \
+ && pip3 install --no-cache-dir speedtest-cli \
  && update-ca-certificates || true \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
