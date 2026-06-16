@@ -203,42 +203,76 @@ class TestCommand {
 
     async getNetworkStats() {
         try {
-            const { stdout } = await execPromise('speedtest-cli', {
-                timeout: 150000,
-                maxBuffer: 1024 * 1024
-            });
+            const commandCandidates = [
+                'speedtest --accept-license --accept-gdpr --format=json',
+                'speedtest --accept-license --accept-gdpr',
+                'speedtest-cli --json',
+                'python3 -m speedtest --json',
+                'speedtest-cli --simple'
+            ];
 
-            const output = stdout.toString();
-            const lines = output.split('\n').map(line => line.trim()).filter(Boolean);
-            const clientLine = lines.find(line => line.startsWith('Testing from ')) || '';
-            const serverLine = lines.find(line => line.startsWith('Hosted by ')) || '';
-            const downloadLine = lines.find(line => line.startsWith('Download: ')) || '';
-            const uploadLine = lines.find(line => line.startsWith('Upload: ')) || '';
+            let lastError = null;
 
-            const clientMatch = clientLine.match(/^Testing from\s+(.+)$/);
-            const serverMatch = serverLine.match(/^Hosted by\s+(.+)$/);
-            const downloadMatch = downloadLine.match(/^Download:\s+([\d.]+)\s+Mbit\/s$/);
-            const uploadMatch = uploadLine.match(/^Upload:\s+([\d.]+)\s+Mbit\/s$/);
+            for (const command of commandCandidates) {
+                try {
+                    const { stdout } = await execPromise(command, {
+                        timeout: 150000,
+                        maxBuffer: 1024 * 1024
+                    });
 
-            const ispName = clientMatch
-                ? clientMatch[1]
-                    .replace(/\s+\(.*\)$/, '')
-                    .replace(/\.\.\.$/, '')
-                    .trim()
-                : 'N/A';
+                    const output = stdout.toString().trim();
 
-            const hostedByName = serverMatch
-                ? serverMatch[1]
-                    .replace(/\s+\[[^\]]+\]:\s+[\d.]+\s+ms$/, '')
-                    .trim()
-                : 'N/A';
+                    if (command.includes('--format=json') || command.endsWith('--json')) {
+                        const data = JSON.parse(output);
+                        return {
+                            hostedBy: data.server?.sponsor || 'N/A',
+                            isp: data.client?.isp || data.client?.ispName || 'N/A',
+                            download: Number.isFinite(data.download)
+                                ? `${(Number(data.download) / 1e6).toFixed(2)} Mbps`
+                                : 'N/A',
+                            upload: Number.isFinite(data.upload)
+                                ? `${(Number(data.upload) / 1e6).toFixed(2)} Mbps`
+                                : 'N/A'
+                        };
+                    }
 
-            return {
-                hostedBy: hostedByName,
-                isp: ispName,
-                download: downloadMatch ? `${Number(downloadMatch[1]).toFixed(2)} Mbps` : 'N/A',
-                upload: uploadMatch ? `${Number(uploadMatch[1]).toFixed(2)} Mbps` : 'N/A'
-            };
+                    const lines = output.split('\n').map(line => line.trim()).filter(Boolean);
+                    const clientLine = lines.find(line => line.startsWith('Testing from ')) || '';
+                    const serverLine = lines.find(line => line.startsWith('Hosted by ')) || '';
+                    const downloadLine = lines.find(line => line.startsWith('Download: ')) || '';
+                    const uploadLine = lines.find(line => line.startsWith('Upload: ')) || '';
+                    const downloadLineM = lines.find(line => /^Download\s+[\d.]+\s+Mbit\/s$/i.test(line)) || '';
+                    const uploadLineM = lines.find(line => /^Upload\s+[\d.]+\s+Mbit\/s$/i.test(line)) || '';
+
+                    const clientMatch = clientLine.match(/^Testing from\s+(.+)$/);
+                    const serverMatch = serverLine.match(/^Hosted by\s+(.+)$/);
+                    const downloadMatch = downloadLine.match(/^Download:\s+([\d.]+)\s+Mbit\/s$/);
+                    const uploadMatch = uploadLine.match(/^Upload:\s+([\d.]+)\s+Mbit\/s$/);
+                    const downloadMatchM = downloadLineM.match(/^Download\s+([\d.]+)\s+Mbit\/s$/i);
+                    const uploadMatchM = uploadLineM.match(/^Upload\s+([\d.]+)\s+Mbit\/s$/i);
+
+                    const ispName = clientMatch
+                        ? clientMatch[1].replace(/\s+\(.*\)$/, '').replace(/\.\.\.$/, '').trim()
+                        : 'N/A';
+
+                    const hostedByName = serverMatch
+                        ? serverMatch[1].replace(/\s+\[[^\]]+\]:\s+[\d.]+\s+ms$/, '').trim()
+                        : 'N/A';
+
+                    if (hostedByName !== 'N/A' || ispName !== 'N/A' || downloadMatch || uploadMatch) {
+                        return {
+                            hostedBy: hostedByName,
+                            isp: ispName,
+                            download: downloadMatch ? `${Number(downloadMatch[1]).toFixed(2)} Mbps` : (downloadMatchM ? `${Number(downloadMatchM[1]).toFixed(2)} Mbps` : 'N/A'),
+                            upload: uploadMatch ? `${Number(uploadMatch[1]).toFixed(2)} Mbps` : (uploadMatchM ? `${Number(uploadMatchM[1]).toFixed(2)} Mbps` : 'N/A')
+                        };
+                    }
+                } catch (commandError) {
+                    lastError = commandError;
+                }
+            }
+
+            throw lastError || new Error('Unable to execute speedtest');
         } catch (error) {
             logger.warn(`Failed to retrieve network stats: ${error.message}`);
             return {
