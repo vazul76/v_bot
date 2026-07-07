@@ -36,6 +36,7 @@ class WABot {
         this.saveCreds = null;
         this.adminNumber = process.env.ADMIN_NUMBER || null; // Format: 628xxxxxxxxxx@s.whatsapp.net
         this.commands = new Map();
+        this.healthCheckTimer = null;
 
         this.registerCommands();
     }
@@ -87,7 +88,7 @@ class WABot {
             auth: this.authState,
             printQRInTerminal: false,
             logger: P({ level: 'silent' }),
-            browser: ['V-Ultimate-Bot-Stb', 'Chrome', '121.0.0'],
+            browser: ['V-Bot', 'Chrome', '121.0.0'],
             defaultQueryTimeoutMs: undefined,
             version: [2, 3000, 1033893291], // fix 405 Connection Failure on new pairing
             markOnlineOnConnection: true, // IMPORTANT: Mark bot as online when connected
@@ -138,6 +139,12 @@ class WABot {
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
                 logger.warn('Connection closed:', lastDisconnect?.error?.message || 'No error message');
+                // Ensure we don't keep scheduled health checks from previous connection
+                try {
+                    this.stopHealthChecks();
+                } catch (e) {
+                    logger.warn('Error stopping health checks on disconnect:', e.message);
+                }
                 if (statusCode) {
                     logger.warn(`Disconnect status code: ${statusCode}`);
                 }
@@ -409,6 +416,13 @@ ${chalk.cyan('║')}    ${chalk.magenta.bold('AVAILABLE COMMANDS:')}            
     startHealthChecks() {
 
         // Schedule daily health check at 8:00 AM
+        // Prevent multiple schedulers by clearing any existing timer first
+        if (this.healthCheckTimer) {
+            logger.info('Existing health check timer detected, clearing it before scheduling a new one');
+            clearTimeout(this.healthCheckTimer);
+            this.healthCheckTimer = null;
+        }
+
         const scheduleNextCheck = () => {
             const now = new Date();
             const next = new Date();
@@ -421,7 +435,13 @@ ${chalk.cyan('║')}    ${chalk.magenta.bold('AVAILABLE COMMANDS:')}            
 
             const timeUntilNext = next.getTime() - now.getTime();
 
-            setTimeout(async () => {
+            // Clear any existing pending timer and set a new one
+            if (this.healthCheckTimer) {
+                clearTimeout(this.healthCheckTimer);
+                this.healthCheckTimer = null;
+            }
+
+            this.healthCheckTimer = setTimeout(async () => {
                 logger.info('Running scheduled health check (8:00 AM)...');
                 const results = await healthChecker.checkAll();
                 logger.info(healthChecker.formatReport(results));
@@ -439,6 +459,14 @@ ${chalk.cyan('║')}    ${chalk.magenta.bold('AVAILABLE COMMANDS:')}            
         };
 
         scheduleNextCheck();
+    }
+
+    stopHealthChecks() {
+        if (this.healthCheckTimer) {
+            logger.info('Stopping health check timer');
+            clearTimeout(this.healthCheckTimer);
+            this.healthCheckTimer = null;
+        }
     }
 
     async stop() {
