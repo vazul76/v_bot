@@ -90,7 +90,7 @@ class WABot {
             logger: P({ level: 'silent' }),
             browser: ['V-Bot', 'Chrome', '121.0.0'],
             defaultQueryTimeoutMs: undefined,
-            version: [2, 3000, 1033893291], // fix 405 Connection Failure on new pairing
+            version: [2, 3200, 6934490], // fix 405 Connection Failure on new pairing
             markOnlineOnConnection: true, // IMPORTANT: Mark bot as online when connected
             syncFullHistory: false
         });
