@@ -349,8 +349,7 @@ class WABot {
 ├ \`/encode [format] [teks]\` - Encode (base64, url, hex, binary, rot13, html)
 └ \`/decode [format] [teks]\` - Decode (format sama dengan encode)
 
-_Bot by vazul76 - v2.3.0_
-_Link repo bot : https://github.com/vazul76/v_bot_`;
+_Bot by vazul76 - v2.3.0_`;
 
         await helpers.replyWithTyping(this.sock, msg, helpText, 2000);
         await helpers.reactSuccess(this.sock, msg);
