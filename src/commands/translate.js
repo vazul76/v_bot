@@ -9,6 +9,15 @@ class TranslateCommand {
             apiKey: config.groqApiKey
         });
 
+        this.modelCandidates = [
+            config.groqModel,
+            'openai/gpt-oss-20b',
+            'groq/compound-mini',
+            'qwen/qwen3.8-27b',
+            'qwen/qwen3.6-27b',
+            'openai/gpt-oss-120b'
+        ].filter((value, index, arr) => value && arr.indexOf(value) === index);
+
         this.commands = [
             { name: 'tr', method: 'translate', description: 'Translate AI (id, en, jp)' }
         ];
@@ -16,8 +25,38 @@ class TranslateCommand {
         this.langMap = {
             'id': 'Bahasa Indonesia',
             'en': 'English',
+            'eng': 'English',
             'jp': 'Japanese'
         };
+    }
+
+    async createCompletionWithFallback(payload) {
+        let lastError = null;
+
+        for (const model of this.modelCandidates) {
+            try {
+                return await this.groq.chat.completions.create({
+                    ...payload,
+                    model
+                });
+            } catch (error) {
+                lastError = error;
+                const errorCode = error?.error?.code || '';
+                const message = error?.message || '';
+                const isModelError = errorCode === 'model_not_found' ||
+                    errorCode === 'model_decommissioned' ||
+                    message.includes('does not exist or you do not have access') ||
+                    message.includes('decommissioned');
+
+                if (!isModelError) {
+                    throw error;
+                }
+
+                logger.warn(`Groq model ${model} unavailable, trying next model candidate`);
+            }
+        }
+
+        throw lastError || new Error('No Groq model available');
     }
 
     async translate(msg, sock, messageBody) {
@@ -73,14 +112,13 @@ class TranslateCommand {
             
             IMPORTANT: Output ONLY the translation. Do not add any explanation or notes.`;
 
-            const chatCompletion = await this.groq.chat.completions.create({
+            const chatCompletion = await this.createCompletionWithFallback({
                 messages: [
                     {
                         role: 'user',
                         content: prompt
                     }
                 ],
-                model: 'llama-3.3-70b-versatile',
                 temperature: 0.3,
                 max_tokens: 300
             });

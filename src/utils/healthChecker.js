@@ -1,4 +1,5 @@
 const logger = require('./logger');
+const config = require('../config');
 
 class HealthChecker {
     constructor() {
@@ -92,11 +93,46 @@ class HealthChecker {
             if (process.env.GROQ_API_KEY) {
                 const Groq = require('groq-sdk');
                 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-                await groq.chat.completions.create({
-                    messages: [{ role: 'user', content: 'test' }],
-                    model: 'llama-3.3-70b-versatile',
-                    max_tokens: 10
-                });
+                const modelCandidates = [
+                    config.groqModel,
+                    'openai/gpt-oss-20b',
+                    'groq/compound-mini',
+                    'qwen/qwen3.8-27b',
+                    'qwen/qwen3.6-27b',
+                    'openai/gpt-oss-120b'
+                ].filter((value, index, arr) => value && arr.indexOf(value) === index);
+
+                let healthCheckPassed = false;
+                let lastGroqError = null;
+
+                for (const model of modelCandidates) {
+                    try {
+                        await groq.chat.completions.create({
+                            messages: [{ role: 'user', content: 'test' }],
+                            model,
+                            max_tokens: 10
+                        });
+                        healthCheckPassed = true;
+                        break;
+                    } catch (error) {
+                        lastGroqError = error;
+                        const errorCode = error?.error?.code || '';
+                        const message = error?.message || '';
+                        const isModelError = errorCode === 'model_not_found' ||
+                            errorCode === 'model_decommissioned' ||
+                            message.includes('does not exist or you do not have access') ||
+                            message.includes('decommissioned');
+
+                        if (!isModelError) {
+                            throw error;
+                        }
+                    }
+                }
+
+                if (!healthCheckPassed) {
+                    throw lastGroqError || new Error('No Groq model available');
+                }
+
                 results.push({ name: 'Groq AI Translation', status: '✅', error: null });
                 this.failedChecks.delete('groq');
             } else {

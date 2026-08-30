@@ -249,6 +249,14 @@ class NewsMonitor {
 
         return recentNews;
     }
+
+    getLatestNews(limit = 10) {
+        if (!Array.isArray(this.lastNews) || this.lastNews.length === 0) {
+            return [];
+        }
+
+        return this.lastNews.slice(0, limit);
+    }
 }
 
 module.exports = new NewsMonitor();

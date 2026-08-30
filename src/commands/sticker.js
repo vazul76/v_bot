@@ -213,7 +213,7 @@ class StickerCommand {
                 logger.info('Mengirim sebagai gambar...');
 
                 // ✅ REPLY KE USER
-                await helpers.replyImageWithTyping(sock, msg, pngBuffer, '✅ Sticker converted to image', 1500);
+                await helpers.replyImageWithTyping(sock, msg, pngBuffer, 1500);
             }
 
             await helpers.reactSuccess(sock, msg);

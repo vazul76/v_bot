@@ -29,6 +29,9 @@ const nslookupCommand = require('./commands/nslookup');
 const encodeCommand = require('./commands/encode');
 const cleanuinCommand = require('./commands/cleanuin');
 const newsuinCommand = require('./commands/newsuin');
+const newsfstCommand = require('./commands/newsfst');
+const idgrupCommand = require('./commands/idgrup');
+const askCommand = require('./commands/ask');
 
 
 class WABot {
@@ -51,7 +54,8 @@ class WABot {
             stickerCommand, youtubeCommand, facebookCommand, tiktokCommand,
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, testCommand,
-            priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand
+            priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand,
+            newsfstCommand, idgrupCommand, askCommand
         ];
 
         modules.forEach(module => {
@@ -357,7 +361,8 @@ class WABot {
 └ \`/scan [file/url/hash]\` - Scan via VirusTotal
 
 *📊 GROUP TOOLS*
-└ \`/poll [tanya],[opsi1],[opsi2]\` - Buat Polling
+├ \`/poll [tanya],[opsi1],[opsi2]\` - Buat Polling
+└ \`/idgrup\` - Lihat nama grup & ID grup bot
 
 *🗣️ TTS*
 └ \`/say [teks]\` - Text to Speech (Auto-detect)
@@ -365,6 +370,9 @@ class WABot {
 *🌐 TRANSLATE (AI)*
 └ \`/tr [lang] [teks]\` - Translate pintar
 👉 Lang: id, en, jp
+
+*🤖 AI CHAT*
+└ \`/ask [pertanyaan]\` - Tanya AI Groq langsung
 
 *🌤️ WEATHER*
 └ \`/cuaca [tempat (kelurahan)]\` - Cek Cuaca D I Yogyakarta
