@@ -17,6 +17,10 @@ npm-debug.log*
 # Environment variables (API Keys, etc)
 .env
 
+# Local news cache (auto-generated)
+data/last_news.json
+data/seen_news.json
+
 # OS Files
 .DS_Store
 Thumbs.db
