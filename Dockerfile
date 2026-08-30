@@ -33,11 +33,10 @@ RUN apt-get update \
    python3 python3-pip python-is-python3 \
    ffmpeg \
    libcairo2 libpango-1.0-0 libjpeg62-turbo libgif7 librsvg2-2 \
-   libvips libglib2.0-0 libexpat1 \
+   libvips libglib2.0-0 libexpat1 yt-dlp \
    fonts-dejavu-core fonts-noto-color-emoji \
    speedtest-cli \
  && update-ca-certificates || true \
- && pip3 install --upgrade yt-dlp \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
 COPY --from=builder --chown=node:node /usr/src/app /usr/src/app
