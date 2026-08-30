@@ -6,6 +6,8 @@ const qrcode = require('qrcode-terminal');
 const logger = require('./utils/logger');
 const helpers = require('./utils/helpers');
 const healthChecker = require('./utils/healthChecker');
+const autoUpdater = require('./utils/autoUpdater');
+const newsMonitor = require('./utils/newsMonitor');
 
 // Commands
 const stickerCommand = require('./commands/sticker');
@@ -25,6 +27,8 @@ const imsakiyahCommand = require('./commands/imsakiyah');
 const qrCommand = require('./commands/qr');
 const nslookupCommand = require('./commands/nslookup');
 const encodeCommand = require('./commands/encode');
+const cleanuinCommand = require('./commands/cleanuin');
+const newsuinCommand = require('./commands/newsuin');
 
 
 class WABot {
@@ -47,7 +51,7 @@ class WABot {
             stickerCommand, youtubeCommand, facebookCommand, tiktokCommand,
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, testCommand,
-            priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand
+            priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand
         ];
 
         modules.forEach(module => {
@@ -131,6 +135,17 @@ class WABot {
                 } else {
                     logger.warn('ADMIN_NUMBER not set in .env, health monitoring disabled');
                 }
+
+                // Start auto-updater (00:00 WIB every day)
+                autoUpdater.start('0 0 * * *');
+
+                // Start news monitor (every 5 hours = 300 minutes)
+                if (this.adminNumber) {
+                    newsMonitor.start(this.sock, this.adminNumber, 300);
+                    logger.info('News monitor started');
+                } else {
+                    logger.warn('ADMIN_NUMBER not set in .env, news monitoring disabled');
+                }
             }
 
             // Disconnected
@@ -144,6 +159,20 @@ class WABot {
                     this.stopHealthChecks();
                 } catch (e) {
                     logger.warn('Error stopping health checks on disconnect:', e.message);
+                }
+
+                // Stop auto-updater on disconnect
+                try {
+                    autoUpdater.stop();
+                } catch (e) {
+                    logger.warn('Error stopping auto-updater on disconnect:', e.message);
+                }
+
+                // Stop news monitor on disconnect
+                try {
+                    newsMonitor.stop();
+                } catch (e) {
+                    logger.warn('Error stopping news monitor on disconnect:', e.message);
                 }
                 if (statusCode) {
                     logger.warn(`Disconnect status code: ${statusCode}`);

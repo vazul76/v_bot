@@ -37,6 +37,7 @@ RUN apt-get update \
    fonts-dejavu-core fonts-noto-color-emoji \
    speedtest-cli \
  && update-ca-certificates || true \
+ && pip3 install --upgrade yt-dlp \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /usr/src/app
 COPY --from=builder --chown=node:node /usr/src/app /usr/src/app
