@@ -165,7 +165,7 @@ class NewsMonitor {
             message += `📅 _${item.date}_\n`;
         }
         
-        message += `\n*Cek Disini:* ${item.link}`;
+        message += `\n*Link:* ${item.link}`;
 
         return message;
     }

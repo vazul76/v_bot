@@ -32,6 +32,10 @@ const newsuinCommand = require('./commands/newsuin');
 const newsfstCommand = require('./commands/newsfst');
 const idgrupCommand = require('./commands/idgrup');
 const askCommand = require('./commands/ask');
+const matkulCommand = require('./commands/matkul');
+
+// Schedulers
+const matkulScheduler = require('./utils/matkulScheduler');
 
 
 class WABot {
@@ -55,7 +59,7 @@ class WABot {
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, testCommand,
             priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand,
-            newsfstCommand, idgrupCommand, askCommand
+            newsfstCommand, idgrupCommand, askCommand, matkulCommand
         ];
 
         modules.forEach(module => {
@@ -143,6 +147,9 @@ class WABot {
                 // Start auto-updater (00:00 WIB every day)
                 autoUpdater.start('0 0 * * *');
 
+                // Start matkul scheduler (reminder at 05:00 every day)
+                matkulScheduler.start(this.sock, this.adminNumber);
+
                 // Start news monitor (every 5 hours = 300 minutes)
                 if (this.adminNumber) {
                     newsMonitor.start(this.sock, this.adminNumber, 300);
@@ -170,6 +177,13 @@ class WABot {
                     autoUpdater.stop();
                 } catch (e) {
                     logger.warn('Error stopping auto-updater on disconnect:', e.message);
+                }
+
+                // Stop matkul scheduler on disconnect
+                try {
+                    matkulScheduler.stop();
+                } catch (e) {
+                    logger.warn('Error stopping matkul scheduler on disconnect:', e.message);
                 }
 
                 // Stop news monitor on disconnect
@@ -364,7 +378,15 @@ class WABot {
 ├ \`/poll [tanya],[opsi1],[opsi2]\` - Buat Polling
 └ \`/idgrup\` - Lihat nama grup & ID grup bot
 
-*🗣️ TTS*
+*� MATKUL MANAGER*
+├ \`/matkul\` - Bantuan command matkul
+├ \`/addmatkul\` - Tambah jadwal matkul
+├ \`/listmatkul\` - Lihat daftar matkul
+├ \`/deletematkul [no]\` - Hapus matkul
+└ \`/deleteallmatkul\` - Hapus semua matkul
+   ⏰ Auto-reminder jam 5 pagi
+
+*�🗣️ TTS*
 └ \`/say [teks]\` - Text to Speech (Auto-detect)
 
 *🌐 TRANSLATE (AI)*
@@ -509,6 +531,13 @@ ${chalk.cyan('║')}    ${chalk.magenta.bold('AVAILABLE COMMANDS:')}            
         if (this.sock) {
             logger.info('Closing socket...');
             this.sock.end();
+        }
+
+        // Stop scheduler
+        try {
+            matkulScheduler.stop();
+        } catch (e) {
+            logger.warn('Error stopping matkul scheduler:', e.message);
         }
     }
 }
