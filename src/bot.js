@@ -379,14 +379,6 @@ class WABot {
 ├ \`/poll [tanya],[opsi1],[opsi2]\` - Buat Polling
 └ \`/idgrup\` - Lihat nama grup & ID grup bot
 
-*� MATKUL MANAGER*
-├ \`/matkul\` - Bantuan command matkul
-├ \`/addmatkul\` - Tambah jadwal matkul
-├ \`/listmatkul\` - Lihat daftar matkul
-├ \`/deletematkul [no]\` - Hapus matkul
-└ \`/deleteallmatkul\` - Hapus semua matkul
-   ⏰ Auto-reminder jam 5 pagi
-
 *�🗣️ TTS*
 └ \`/say [teks]\` - Text to Speech (Auto-detect)
 
