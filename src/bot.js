@@ -23,6 +23,7 @@ const scanCommand = require('./commands/scan');
 const weatherCommand = require('./commands/weather');
 const testCommand = require('./commands/test');
 const priceCommand = require('./commands/price');
+const bbmCommand = require('./commands/bbm');
 const imsakiyahCommand = require('./commands/imsakiyah');
 const qrCommand = require('./commands/qr');
 const nslookupCommand = require('./commands/nslookup');
@@ -58,7 +59,7 @@ class WABot {
             stickerCommand, youtubeCommand, facebookCommand, tiktokCommand,
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, testCommand,
-            priceCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand,
+            priceCommand, bbmCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand,
             newsfstCommand, idgrupCommand, askCommand, matkulCommand
         ];
 
@@ -400,7 +401,8 @@ class WABot {
 └ \`/cuaca [tempat (kelurahan)]\` - Cek Cuaca D I Yogyakarta
 
 *💹 MARKET*
-└ \`/price\` - Harga Crypto & Komoditas + IHSG (24h change)
+├ \`/price\` - Harga Crypto & Komoditas + IHSG (24h change)
+└ \`/bbm [provinsi]\` - Harga BBM Pertamina (default DIY)
 
 *🛠️ TOOLS*
 ├ \`/qr [teks/url]\` - Generate QR Code
@@ -408,7 +410,7 @@ class WABot {
 ├ \`/encode [format] [teks]\` - Encode (base64, url, hex, binary, rot13, html)
 └ \`/decode [format] [teks]\` - Decode (format sama dengan encode)
 
-_Bot by vazul76 - v2.3.0_`;
+_Bot by vazul76 - v2.5.0_`;
 
         await helpers.replyWithTyping(this.sock, msg, helpText, 2000);
         await helpers.reactSuccess(this.sock, msg);
@@ -456,7 +458,7 @@ ${chalk.cyan('║')}    ${chalk.blue.bold('╚██╗ ██╔╝')}${chalk.w
 ${chalk.cyan('║')}    ${chalk.blue.bold(' ╚████╔╝ ')}${chalk.white.bold('      ╚██████╔╝███████╗   ██║   ██║██║ ╚═╝ ██║██║  ██║   ██║   ███████╗')}    ${chalk.cyan('║')}
 ${chalk.cyan('║')}    ${chalk.blue.bold('  ╚═══╝  ')}${chalk.white.bold('       ╚═════╝ ╚══════╝   ╚═╝   ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝')}    ${chalk.cyan('║')}
 ${chalk.cyan('║')}                                                                        ${chalk.cyan('║')}
-${chalk.cyan('║')}    ${chalk.yellow('»')} ${chalk.white.bold('Version:')} ${chalk.green('2.3.2')}                                              ${chalk.cyan('║')}
+${chalk.cyan('║')}    ${chalk.yellow('»')} ${chalk.white.bold('Version:')} ${chalk.green('2.5.0')}                                              ${chalk.cyan('║')}
 ${chalk.cyan('║')}    ${chalk.yellow('»')} ${chalk.white.bold('Author :')} ${chalk.green('vazul76')}                                              ${chalk.cyan('║')}
 ${chalk.cyan('║')}    ${chalk.yellow('»')} ${chalk.white.bold('Status :')} ${chalk.green.bold('ONLINE')}                                               ${chalk.cyan('║')}
 ${chalk.cyan('║')}                                                                        ${chalk.cyan('║')}
