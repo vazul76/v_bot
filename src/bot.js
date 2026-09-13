@@ -261,20 +261,44 @@ class WABot {
             logger.info(`Pesan diterima: "${body}" dari ${msg.key.remoteJid}`);
 
             // Cek prefix
-            if (!body.startsWith(this.prefix)) {
-                logger.info('Bukan command, diabaikan');
+            if (body.startsWith(this.prefix)) {
+                // Parse command
+                const commandBody = body.slice(this.prefix.length).trim();
+                const args = commandBody.split(/ +/);
+                const command = args[0].toLowerCase();
+
+                logger.info(`Command terdeteksi: "${command}"`);
+
+                // Route command
+                await this.routeCommand(command, body, msg);
                 return;
             }
 
-            // Parse command
-            const commandBody = body.slice(this.prefix.length).trim();
-            const args = commandBody.split(/ +/);
-            const command = args[0].toLowerCase();
+            const isGroupChat = this.isGroupChat(msg.key.remoteJid);
 
-            logger.info(`Command terdeteksi: "${command}"`);
+            if (isGroupChat) {
+                const replyToBot = await this.isReplyToBot(msg);
 
-            // Route command
-            await this.routeCommand(command, body, msg);
+                // Di grup, AI non-command hanya aktif jika reply ke pesan bot
+                if (!replyToBot) {
+                    logger.info('Pesan grup non-command non-reply diabaikan (AI hanya via /ask atau reply bot)');
+                    return;
+                }
+            }
+
+            const promptText = body;
+
+            if (!promptText) {
+                logger.info('Prompt AI kosong setelah diproses, diabaikan');
+                return;
+            }
+
+            logger.info(`Auto AI trigger terdeteksi: "${promptText}"`);
+            await askCommand.processAndReply(this.sock, msg, promptText, {
+                showReactions: false,
+                includeQuotedContext: true,
+                preserveQuotedOnlyPrompt: false
+            });
 
         } catch (error) {
             logger.error('Error handling message:', error);
@@ -285,6 +309,27 @@ class WABot {
                 logger.error('Error sending error reply:', replyError);
             }
         }
+    }
+
+    isGroupChat(remoteJid) {
+        return typeof remoteJid === 'string' && remoteJid.endsWith('@g.us');
+    }
+
+    getBotJid() {
+        return this.normalizeJid(this.sock?.user?.id || '');
+    }
+
+    normalizeJid(jid) {
+        return (jid || '').replace(/:\d+@/g, '@');
+    }
+
+    async isReplyToBot(msg, botJid = this.getBotJid()) {
+        if (!botJid) return false;
+
+        const quoted = await helpers.getQuotedMessage(msg);
+        if (!quoted?.sender) return false;
+
+        return this.normalizeJid(quoted.sender) === botJid;
     }
 
     async routeCommand(command, body, msg) {
@@ -355,7 +400,7 @@ class WABot {
     async sendHelp(msg) {
         await helpers.reactCommandReceived(this.sock, msg);
 
-        const helpText = `*🗿 V-ULTIMATE BOT v2.3*
+        const helpText = `*🗿 V-ULTIMATE BOT v2.5*
 
 *📌 STICKER TOOLS*
 ├ \`/s\` - Gambar/Video → Sticker
@@ -419,6 +464,10 @@ _Bot by vazul76 - v2.5.0_`;
 
         // Filter out aliases for display if they point to same method in same module
         this.commands.forEach((cfg, name) => {
+            if (['imsakiyah', 'cleanuin', 'newsuin', 'newsfst', 'idgrup', 'addmatkul', 'listmatkul', 'deletematkul', 'deleteallmatkul', 'matkul'].includes(name)) {
+                return;
+            }
+
             const key = `${cfg.module.constructor.name}:${cfg.method}`;
             if (!seenMethods.has(key)) {
                 uniqueCommands.push({ name, description: cfg.description });

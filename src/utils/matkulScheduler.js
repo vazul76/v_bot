@@ -16,7 +16,8 @@ const DAYS_MAP = {
 
 class MatkulScheduler {
     constructor() {
-        this.schedulerJob = null;
+        this.morningSchedulerJob = null;
+        this.eveningSchedulerJob = null;
     }
 
     loadMatkul() {
@@ -40,6 +41,24 @@ class MatkulScheduler {
         return matkulList.filter(matkul => matkul.hari === dayName);
     }
 
+    getTomorrowMatkul() {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const dayName = DAYS_MAP[tomorrow.getDay()];
+
+        const matkulList = this.loadMatkul();
+        return matkulList.filter(matkul => matkul.hari === dayName);
+    }
+
+    sortMatkulByTime(matkulList) {
+        // Sort matkul by start time (jam format: HH.MM-HH.MM)
+        return matkulList.sort((a, b) => {
+            const timeA = a.jam.split('-')[0].replace('.', ':');
+            const timeB = b.jam.split('-')[0].replace('.', ':');
+            return timeA.localeCompare(timeB);
+        });
+    }
+
     formatReminderMessage() {
         const todayMatkul = this.getTodayMatkul();
 
@@ -47,10 +66,38 @@ class MatkulScheduler {
             return null;
         }
 
+        const sortedMatkul = this.sortMatkulByTime(todayMatkul);
+
         let message = `*🔔 REMINDER MATKUL HARI INI*\n`;
         message += `📅 ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}\n\n`;
 
-        todayMatkul.forEach((matkul, index) => {
+        sortedMatkul.forEach((matkul, index) => {
+            message += `${index + 1}. *${matkul.nama}*\n`;
+            message += `🕐 Jam: ${matkul.jam}\n`;
+            message += `📍 Tempat: ${matkul.tempat}\n`;
+            message += '\n';
+        });
+
+        message += `_Jangan lupa siapkan diri! 💪_`;
+        return message;
+    }
+
+    formatEveningReminderMessage() {
+        const tomorrowMatkul = this.getTomorrowMatkul();
+
+        if (tomorrowMatkul.length === 0) {
+            return null;
+        }
+
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const sortedMatkul = this.sortMatkulByTime(tomorrowMatkul);
+
+        let message = `*🔔 REMINDER MATKUL BESOK*\n`;
+        message += `📅 ${tomorrow.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}\n\n`;
+
+        sortedMatkul.forEach((matkul, index) => {
             message += `${index + 1}. *${matkul.nama}*\n`;
             message += `🕐 Jam: ${matkul.jam}\n`;
             message += `📍 Tempat: ${matkul.tempat}\n`;
@@ -67,9 +114,9 @@ class MatkulScheduler {
             return;
         }
 
-        // Schedule for 05:00 every day
+        // Schedule for 05:00 every day - reminder for today's matkul
         // Cron format: minute hour day month dayOfWeek
-        this.schedulerJob = cron.schedule('0 5 * * *', async () => {
+        this.morningSchedulerJob = cron.schedule('0 5 * * *', async () => {
             try {
                 logger.info('MatkulScheduler: Running daily reminder check at 05:00');
 
@@ -81,23 +128,50 @@ class MatkulScheduler {
                         text: reminderMessage
                     });
 
-                    logger.info('MatkulScheduler: Reminder sent to admin');
+                    logger.info('MatkulScheduler: Morning reminder sent to admin');
                 } else {
-                    logger.info('MatkulScheduler: No matkul today, no reminder sent');
+                    logger.info('MatkulScheduler: No matkul today, no morning reminder sent');
                 }
 
             } catch (error) {
-                logger.error('MatkulScheduler: Error sending reminder:', error);
+                logger.error('MatkulScheduler: Error sending morning reminder:', error);
             }
         });
 
-        logger.info('MatkulScheduler: Initialized - reminders at 05:00 every day');
+        // Schedule for 20:00 every day - reminder for tomorrow's matkul
+        this.eveningSchedulerJob = cron.schedule('0 20 * * *', async () => {
+            try {
+                logger.info('MatkulScheduler: Running evening reminder check at 20:00');
+
+                const eveningReminderMessage = this.formatEveningReminderMessage();
+
+                if (eveningReminderMessage) {
+                    // Send to admin
+                    await sock.sendMessage(adminNumber, {
+                        text: eveningReminderMessage
+                    });
+
+                    logger.info('MatkulScheduler: Evening reminder sent to admin');
+                } else {
+                    logger.info('MatkulScheduler: No matkul tomorrow, no evening reminder sent');
+                }
+
+            } catch (error) {
+                logger.error('MatkulScheduler: Error sending evening reminder:', error);
+            }
+        });
+
+        logger.info('MatkulScheduler: Initialized - reminders at 05:00 (today\'s matkul) and 20:00 (tomorrow\'s matkul) every day');
     }
 
     stop() {
-        if (this.schedulerJob) {
-            this.schedulerJob.stop();
-            logger.info('MatkulScheduler: Stopped');
+        if (this.morningSchedulerJob) {
+            this.morningSchedulerJob.stop();
+            logger.info('MatkulScheduler: Morning scheduler stopped');
+        }
+        if (this.eveningSchedulerJob) {
+            this.eveningSchedulerJob.stop();
+            logger.info('MatkulScheduler: Evening scheduler stopped');
         }
     }
 

@@ -14,6 +14,7 @@ class MatkulCommand {
             { name: 'deleteallmatkul', method: 'deleteAllMatkul', description: 'Hapus semua matkul' },
             { name: 'matkul', method: 'showHelp', description: 'Bantuan command matkul' }
         ];
+        this.sortedIndexMap = {}; // Track sorted positions to original indexes
     }
 
     loadMatkul() {
@@ -38,6 +39,47 @@ class MatkulCommand {
             logger.error('Error saving matkul database:', error);
             return false;
         }
+    }
+
+    getDayOrderValue(dayName) {
+        // Map hari to order value for sorting
+        const dayOrder = {
+            'Senin': 1,
+            'Selasa': 2,
+            'Rabu': 3,
+            'Kamis': 4,
+            'Jumat': 5,
+            'Sabtu': 6,
+            'Minggu': 7
+        };
+        return dayOrder[dayName] || 8;
+    }
+
+    sortMatkulWithIndex(matkulList) {
+        // Create array with original indexes
+        const indexed = matkulList.map((matkul, idx) => ({
+            originalIndex: idx,
+            matkul: matkul
+        }));
+
+        // Sort by day first, then by time
+        indexed.sort((a, b) => {
+            const dayCompare = this.getDayOrderValue(a.matkul.hari) - this.getDayOrderValue(b.matkul.hari);
+            if (dayCompare !== 0) return dayCompare;
+
+            // If same day, sort by time
+            const timeA = a.matkul.jam.split('-')[0].replace('.', ':');
+            const timeB = b.matkul.jam.split('-')[0].replace('.', ':');
+            return timeA.localeCompare(timeB);
+        });
+
+        // Create mapping of display index to original index
+        this.sortedIndexMap = {};
+        indexed.forEach((item, displayIdx) => {
+            this.sortedIndexMap[displayIdx] = item.originalIndex;
+        });
+
+        return indexed;
     }
 
     async addMatkul(msg, sock, messageBody) {
@@ -127,9 +169,13 @@ class MatkulCommand {
                 );
             }
 
+            // Sort matkul with index tracking
+            const sortedMatkul = this.sortMatkulWithIndex(matkulList);
+
             let response = '*LIST MATKUL*\n\n';
             
-            matkulList.forEach((matkul, index) => {
+            sortedMatkul.forEach((item, index) => {
+                const matkul = item.matkul;
                 response += `${index + 1}. *${matkul.nama}*\n`;
                 response += `*Hari :* ${matkul.hari}\n`;
                 response += `*Jam :* ${matkul.jam}\n`;
@@ -139,7 +185,7 @@ class MatkulCommand {
 
             await helpers.reactSuccess(sock, msg);
             await helpers.replyWithTyping(sock, msg, response);
-            logger.info(`Listed ${matkulList.length} matkul`);
+            logger.info(`Listed ${matkulList.length} matkul (sorted)`);
 
         } catch (error) {
             logger.error('Error in listMatkul:', error);
@@ -164,10 +210,13 @@ class MatkulCommand {
                 );
             }
 
-            const index = parseInt(match[1]) - 1; // Convert to 0-based index
+            const displayIndex = parseInt(match[1]) - 1; // Convert to 0-based display index
             const matkulList = this.loadMatkul();
 
-            if (index < 0 || index >= matkulList.length) {
+            // Rebuild sorted index map to get actual index to delete
+            this.sortMatkulWithIndex(matkulList);
+
+            if (displayIndex < 0 || displayIndex >= matkulList.length) {
                 await helpers.reactError(sock, msg);
                 return helpers.replyWithTyping(sock, msg,
                     `❌ Nomor matkul tidak valid!\n\n` +
@@ -175,8 +224,11 @@ class MatkulCommand {
                 );
             }
 
-            const deletedMatkul = matkulList[index];
-            matkulList.splice(index, 1);
+            // Get original index from mapping
+            const originalIndex = this.sortedIndexMap[displayIndex];
+            const deletedMatkul = matkulList[originalIndex];
+            
+            matkulList.splice(originalIndex, 1);
             this.saveMatkul(matkulList);
 
             await helpers.reactSuccess(sock, msg);

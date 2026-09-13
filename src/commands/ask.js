@@ -81,7 +81,70 @@ class AskCommand {
                 return helpers.replyWithTyping(sock, msg, '❌ Pertanyaan terlalu panjang! (Maks 3000 karakter)');
             }
 
-            await helpers.reactProcessing(sock, msg);
+            const quoted = await helpers.getQuotedMessage(msg);
+            const includeQuotedContext = Boolean(quoted && promptText);
+
+            await this.processAndReply(sock, msg, promptText, {
+                showReactions: true,
+                includeQuotedContext,
+                preserveQuotedOnlyPrompt: true
+            });
+        } catch (error) {
+            logger.error('Error in /ask:', error.message);
+            await helpers.reactError(sock, msg);
+            await helpers.replyWithTyping(sock, msg, '❌ Gagal memproses pertanyaan ke AI.');
+        }
+    }
+
+    // Generic method for processing AI requests (used by both /ask and auto-chat)
+    async processAndReply(sock, msg, promptText, options = {}) {
+        try {
+            const {
+                showReactions = true,
+                includeQuotedContext = false,
+                preserveQuotedOnlyPrompt = false
+            } = options;
+
+            if (!config.groqApiKey) {
+                return helpers.replyWithTyping(sock, msg, '❌ GROQ_API_KEY belum dikonfigurasi!');
+            }
+
+            let finalPrompt = (promptText || '').trim();
+
+            if (!finalPrompt) {
+                const quoted = await helpers.getQuotedMessage(msg);
+                if (quoted) {
+                    const quotedText = this.getTextFromMessage(quoted.message).trim();
+                    if (quotedText) {
+                        finalPrompt = quotedText;
+                    }
+                }
+            }
+
+            if (!finalPrompt) {
+                return helpers.replyWithTyping(sock, msg, '❌ Tulis pertanyaan dulu ya.');
+            }
+
+            if (includeQuotedContext) {
+                const quoted = await helpers.getQuotedMessage(msg);
+                if (quoted) {
+                    const quotedText = this.getTextFromMessage(quoted.message).trim();
+                    if (quotedText) {
+                        const safePrompt = finalPrompt.trim();
+                        if (!(preserveQuotedOnlyPrompt && safePrompt === quotedText)) {
+                            finalPrompt = `Konteks pesan sebelumnya:\n${quotedText}\n\nPesan user:\n${safePrompt}\n\nJawab sesuai konteks percakapan.`;
+                        }
+                    }
+                }
+            }
+
+            if (finalPrompt.length > 3000) {
+                return helpers.replyWithTyping(sock, msg, '❌ Pertanyaan terlalu panjang! (Maks 3000 karakter)');
+            }
+
+            if (showReactions) {
+                await helpers.reactProcessing(sock, msg);
+            }
 
             const completion = await this.createCompletionWithFallback({
                 messages: [
@@ -91,7 +154,7 @@ class AskCommand {
                     },
                     {
                         role: 'user',
-                        content: promptText
+                        content: finalPrompt
                     }
                 ],
                 temperature: 0.6,
@@ -101,15 +164,15 @@ class AskCommand {
             const answer = completion.choices?.[0]?.message?.content?.trim();
 
             if (!answer) {
-                await helpers.reactError(sock, msg);
                 return helpers.replyWithTyping(sock, msg, '❌ AI tidak memberikan jawaban. Coba lagi.');
             }
 
             await helpers.replyWithTyping(sock, msg, answer);
-            await helpers.reactSuccess(sock, msg);
+            if (showReactions) {
+                await helpers.reactSuccess(sock, msg);
+            }
         } catch (error) {
-            logger.error('Error in /ask:', error.message);
-            await helpers.reactError(sock, msg);
+            logger.error('Error in processAndReply:', error.message);
             await helpers.replyWithTyping(sock, msg, '❌ Gagal memproses pertanyaan ke AI.');
         }
     }
