@@ -198,7 +198,7 @@ class StickerCommand {
                 logger.info('Sending animated sticker as webp...');
 
                 // ✅ REPLY KE USER
-                await helpers.replyDocumentWithTyping(sock, msg, buffer, 'sticker-animated.webp', 'image/webp',  1500);
+                await helpers.replyDocumentWithTyping(sock, msg, buffer, 'sticker-animated.webp', 'image/webp', '', 1500);
 
             } else {
                 logger.info('Converting to PNG...');
@@ -213,7 +213,7 @@ class StickerCommand {
                 logger.info('Mengirim sebagai gambar...');
 
                 // ✅ REPLY KE USER
-                await helpers.replyImageWithTyping(sock, msg, pngBuffer, 1500);
+                await helpers.replyImageWithTyping(sock, msg, pngBuffer, 'NYOHH', 1500);
             }
 
             await helpers.reactSuccess(sock, msg);
