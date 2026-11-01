@@ -21,13 +21,20 @@ class YouTubeDownloader {
     }
 
     getYtDlpCommonOptions() {
-        return {
+        const options = {
             noPlaylist: true,
             noWarnings: true,
             userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             referer: 'https://www.youtube.com/',
             extractorArgs: 'youtube:player_client=android,web'
         };
+
+        const cookies = process.env.YT_COOKIES;
+        if (cookies && fs.existsSync(cookies)) {
+            options.cookies = cookies;
+        }
+
+        return options;
     }
 
     async downloadAudio(msg, sock, messageBody) {
@@ -192,11 +199,11 @@ class YouTubeDownloader {
 
     async extractURL(messageBody, msg) {
         const text = messageBody.replace(/^[\.\/](ytmp3|yt)\s+/i, '').trim();
-        const urlRegex = /(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/[^\s]+/gi;
+        const urlRegex = /(https?:\/\/)?((?:www|m|music)\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\/[^\s]+/gi;
         let matches = text.match(urlRegex);
 
         if (matches) {
-            return matches[0];
+            return this.cleanUrl(matches[0]);
         }
 
         const quoted = await helpers.getQuotedMessage(msg);
@@ -205,11 +212,15 @@ class YouTubeDownloader {
             matches = quotedText?.match(urlRegex);
             if (matches) {
                 logger.info('URL found in quoted message');
-                return matches[0];
+                return this.cleanUrl(matches[0]);
             }
         }
 
         return null;
+    }
+
+    cleanUrl(url) {
+        return (url || '').replace(/[)\].,;:!?'"]+$/, '');
     }
 
     getTextFromMessage(message) {
@@ -219,8 +230,36 @@ class YouTubeDownloader {
     }
 
     isValidYouTubeURL(url) {
-        const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|embed\/|v\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})(\?.*)?$/;
-        return youtubeRegex.test(url);
+        try {
+            const parsed = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+            const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+            const pathname = parsed.pathname.replace(/\/+$/, '') || '/';
+            const idPattern = /^[A-Za-z0-9_-]{11}$/;
+
+            if (host === 'youtu.be') {
+                const id = pathname.split('/')[1];
+                return idPattern.test(id || '');
+            }
+
+            if (host === 'youtube-nocookie.com') {
+                const match = pathname.match(/^\/embed\/([A-Za-z0-9_-]{11})$/);
+                return !!match && idPattern.test(match[1]);
+            }
+
+            if (!['youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(host)) {
+                return false;
+            }
+
+            if (pathname === '/watch') {
+                const id = parsed.searchParams.get('v');
+                return idPattern.test(id || '');
+            }
+
+            const match = pathname.match(/^\/(?:embed|v|shorts|live)\/([A-Za-z0-9_-]{11})$/);
+            return !!match && idPattern.test(match[1]);
+        } catch (error) {
+            return false;
+        }
     }
 
     cleanupTempFiles(files) {

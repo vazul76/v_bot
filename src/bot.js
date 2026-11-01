@@ -34,6 +34,7 @@ const newsfstCommand = require('./commands/newsfst');
 const idgrupCommand = require('./commands/idgrup');
 const askCommand = require('./commands/ask');
 const matkulCommand = require('./commands/matkul');
+const threadsCommand = require('./commands/threads');
 
 // Schedulers
 const matkulScheduler = require('./utils/matkulScheduler');
@@ -60,7 +61,7 @@ class WABot {
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, testCommand,
             priceCommand, bbmCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand,
-            newsfstCommand, idgrupCommand, askCommand, matkulCommand
+            newsfstCommand, idgrupCommand, askCommand, matkulCommand, threadsCommand
         ];
 
         modules.forEach(module => {
@@ -407,7 +408,8 @@ class WABot {
 │   ├ Gambar → Static sticker
 │   └ Video/GIF → Animated sticker 🎬
 ├ \`/stext [teks]\` - Gambar → Sticker + Teks
-└ \`/toimg\` - Sticker → Gambar/Video
+├ \`/toimg\` - Sticker → Gambar/Video
+└ \`/showimg\` - Kirim ulang gambar/video (termasuk sekali lihat)
 
 *📥 DOWNLOADER*
 ├ \`/ytmp3 [link]\` - YouTube → MP3 (16MB max)
@@ -415,6 +417,7 @@ class WABot {
 ├ \`/fb [link]\` - Facebook Video/Photo
 ├ \`/tt [link]\` - TikTok Video
 ├ \`/ig [link]\` - Instagram Video/Photo
+├ \`/th [link]\` - Threads Video/Photo
 └ \`/x [link]\` - Twitter/X Video/Photo
 
 *🛡️ SECURITY*

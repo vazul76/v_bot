@@ -9,7 +9,7 @@ class NewsUINCommand {
         ];
     }
 
-    async execute(msg, sock, messageBody) {
+	async execute(msg, sock, messageBody) {
         try {
             logger.info('Executing /newsuin command');
             await helpers.reactCommandReceived(sock, msg);

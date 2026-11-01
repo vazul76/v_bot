@@ -1,4 +1,4 @@
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { downloadMediaMessage, normalizeMessageContent } = require('@whiskeysockets/baileys');
 const { Sticker, StickerTypes } = require('wa-sticker-formatter');
 const Canvas = require('canvas');
 const fs = require('fs');
@@ -22,7 +22,8 @@ class StickerCommand {
         this.commands = [
             { name: 's', method: 'createSticker', description: 'Gambar/Video → Sticker' },
             { name: 'stext', method: 'createStickerWithText', description: 'Gambar → Sticker + Teks' },
-            { name: 'toimg', method: 'convertStickerToImage', description: 'Sticker → Gambar/Video' }
+            { name: 'toimg', method: 'convertStickerToImage', description: 'Sticker → Gambar/Video' },
+            { name: 'showimg', method: 'showImage', description: 'Gambar/Video → Kirim ulang' }
         ];
 
         if (!fs.existsSync(this.tempDir)) {
@@ -228,6 +229,47 @@ class StickerCommand {
         }
     }
 
+    async showImage(msg, sock) {
+        try {
+            logger.info('Memproses command .showimg');
+            await helpers.reactCommandReceived(sock, msg);
+
+            // Pembacaan media sama persis dengan /s (mendukung view-once)
+            const media = await this.getMediaFromMessage(msg, sock);
+
+            if (!media) {
+                logger.warn('Tidak ada media ditemukan untuk .showimg');
+                await helpers.reactError(sock, msg);
+                return helpers.replyWithTyping(sock, msg, '❌ Reply gambar/video dengan command /showimg untuk mengirimkannya kembali!');
+            }
+
+            const messageType = this.getMediaType(msg);
+
+            await helpers.reactProcessing(sock, msg);
+
+            if (messageType === 'video') {
+                logger.info('Mengirim ulang video...');
+                await helpers.replyVideoWithTyping(sock, msg, media, '', 1500);
+            } else {
+                logger.info('Converting to PNG...');
+                const pngBuffer = await sharp(media).png().toBuffer();
+
+                logger.info('Mengirim ulang sebagai gambar...');
+                await helpers.replyImageWithTyping(sock, msg, pngBuffer, '', 1500);
+            }
+
+            await helpers.reactSuccess(sock, msg);
+            logger.success('Media berhasil dikirim ulang!');
+
+        } catch (error) {
+            logger.error('Error .showimg:', error.message);
+            logger.error('Stack trace:', error.stack);
+
+            await helpers.reactError(sock, msg);
+            await helpers.replyWithTyping(sock, msg, '❌ Gagal mengirim ulang media!\n\n💡 Pastikan media masih tersedia dan belum kedaluwarsa.');
+        }
+    }
+
     async getMediaFromMessage(msg, sock) {
         try {
             const message = msg.message;
@@ -256,12 +298,13 @@ class StickerCommand {
     }
 
     getMediaType(msg) {
-        const message = msg.message;
+        const message = normalizeMessageContent(msg.message);
 
         if (message?.imageMessage) return 'image';
         if (message?.videoMessage) return 'video';
 
-        const quoted = message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quotedRaw = message?.extendedTextMessage?.contextInfo?.quotedMessage;
+        const quoted = normalizeMessageContent(quotedRaw);
         if (quoted?.imageMessage) return 'image';
         if (quoted?.videoMessage) return 'video';
 

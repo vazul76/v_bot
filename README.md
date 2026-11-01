@@ -5,7 +5,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D%2018.x-green.svg)](https://nodejs.org/)
 [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-brightgreen.svg)](https://github.com/WhiskeySockets/Baileys)
 
-**V-Ultimate-Bot** adalah WhatsApp Bot Utility yang dibangun dengan **@whiskeysockets/baileys**. Bot ini menggabungkan berbagai fitur canggih mulai dari Sticker Tools, Social Media Downloader (YT, FB, TikTok, IG, Twitter/X), hingga berbagai utility tools.
+**V-Ultimate-Bot** adalah WhatsApp Bot Utility yang dibangun dengan **@whiskeysockets/baileys**. Bot ini menggabungkan berbagai fitur canggih mulai dari Sticker Tools, Social Media Downloader (YT, FB, TikTok, IG, Twitter/X, Threads), hingga berbagai utility tools.
 
 > **🔄 Update v2.4.0**: 
 > - ✅ Tambah `/qr` — QR Code Generator
@@ -22,11 +22,12 @@
 - **Sticker to Image**: Konversi kembali sticker (WebP) menjadi gambar (PNG) yang sudah di-trim transparasinya.
 
 ### 📥 Social Media Downloader
-- **YouTube Downloader**: Download video (MP4) atau audio (MP3) dengan kualitas terbaik.
-- **Twitter/X Downloader**: Download video dan foto dari Twitter/X.
-- **Instagram Downloader**: Download video dan Reels Instagram (foto belum support).
-- **TikTok Downloader**: Download video dan foto/slideshow TikTok (tanpa watermark, auto-detect format).
-- **Facebook Downloader**: Download video dan foto dari Facebook.
+- **YouTube Downloader**: Download video (MP4) atau audio (MP3) dari link watch, shorts, live, music, dan youtu.be.
+- **Twitter/X Downloader**: Download foto (termasuk multi-foto), video, dan GIF dari post Twitter/X.
+- **Instagram Downloader**: Download video, Reels, foto, dan carousel Instagram.
+- **TikTok Downloader**: Download video TikTok tanpa watermark (foto/slideshow belum didukung).
+- **Facebook Downloader**: Download video, Reel, dan foto publik dari Facebook.
+- **Threads Downloader**: Download gambar, video, dan carousel dari Threads.
 
 ### 🗣️ Utility & Fun
 - **Text-to-Speech (TTS)**: Ubah teks jadi suara Google dengan deteksi bahasa otomatis (Indo, Arab, Jepang).
@@ -135,11 +136,13 @@ Gunakan prefix `/` (slash) diikuti oleh perintah:
 | `/s` | Gambar → Sticker | - |
 | `/stext [Teks]` | Gambar → Sticker + Teks | - |
 | `/toimg` | (Reply Sticker) → Gambar | - |
+| `/showimg` | (Reply Gambar/Video) → Kirim ulang sebagai gambar/video | - |
 | `/ytmp3 [Link]` | Download Audio YouTube (MP3) | Max 16MB |
 | `/yt [Link]` | Download Video YouTube (MP4) | Max 100MB |
 | `/fb [Link]` | Download Media Facebook (Video/Foto) | Max 100MB |
-| `/tt [Link]` | Download Media TikTok (Video/Foto) | Max 100MB |
-| `/ig [Link]` | Download Instagram (Video/Reels only) | Max 100MB |
+| `/tt [Link]` | Download Video TikTok (foto/slideshow belum didukung) | Max 100MB |
+| `/ig [Link]` | Download Media Instagram (Video/Foto/Carousel) | Max 100MB |
+| `/th [Link]` | Download Media Threads (Video/Foto/Carousel) | Max 100MB |
 | `/twitter` / `/x [Link]` | Download Media Twitter/X (Video/Foto) | Max 100MB |
 | `/cuaca [Lokasi]` | Cek Cuaca BMKG (DI Yogyakarta) | 516 lokasi |
 | `/price` | Harga crypto populer, komoditas, IHSG (24h change) | - |
@@ -168,8 +171,9 @@ Gunakan prefix `/` (slash) diikuti oleh perintah:
 │   │   ├── youtube.js     # YouTube downloader (yt, ytmp3)
 │   │   ├── twitter.js     # Twitter/X media downloader (video & photo)
 │   │   ├── facebook.js    # Facebook media downloader (video & photo)
-│   │   ├── tiktok.js      # TikTok media downloader (video & photo)
-│   │   ├── instagram.js   # Instagram downloader (video/reels only)
+│   │   ├── tiktok.js      # TikTok media downloader (video)
+│   │   ├── instagram.js   # Instagram downloader (video, photo, carousel)
+│   │   ├── threads.js     # Threads downloader (video, photo, carousel)
 │   │   ├── poll.js        # WhatsApp Poll feature
 │   │   ├── tts.js         # Text-to-Speech (Auto-detect language)
 │   │   ├── translate.js   # AI Translator
@@ -202,6 +206,13 @@ GROQ_API_KEY=your_groq_api_key_here
 # Admin WhatsApp Number for Health Monitoring (Optional)
 # Format: 628xxxxxxxxxx@s.whatsapp.net
 ADMIN_NUMBER=628xxxxxxxxxx@s.whatsapp.net
+
+# Cookies yt-dlp per platform (Optional - path absolut ke cookies.txt)
+# YT_COOKIES=/path/to/youtube-cookies.txt
+# IG_COOKIES=/path/to/instagram-cookies.txt
+# FB_COOKIES=/path/to/facebook-cookies.txt
+# X_COOKIES=/path/to/x-cookies.txt
+# TT_COOKIES=/path/to/tiktok-cookies.txt
 ```
 
 **Dapatkan API Key gratis:**
@@ -210,16 +221,24 @@ ADMIN_NUMBER=628xxxxxxxxxx@s.whatsapp.net
 
 ### 🍪 Cookies.txt (Optional - untuk stabilitas download)
 
-Cookies.txt dapat meningkatkan stabilitas download YouTube dan TikTok dengan bypass anti-bot:
+Cookies.txt dapat membantu stabilitas download (mis. YouTube 403 atau post yang butuh login):
 
 1. **Install browser extension**: [Get cookies.txt LOCALLY](https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc)
-2. **Login ke YouTube/TikTok** di browser Anda
+2. **Login ke YouTube/TikTok/Instagram/Facebook/X** di browser Anda
 3. **Klik extension** dan export cookies
 4. **Simpan sebagai `cookies.txt`** di root project (sejajar dengan `package.json`)
-5. Bot akan otomatis menggunakan cookies untuk semua download
+5. Set env var sesuai platform, misalnya `IG_COOKIES=/path/ke/instagram-cookies.txt`
 
 > [!TIP]
-> Cookies.txt **opsional** tapi **sangat direkomendasikan** untuk menghindari error 403 Forbidden pada YouTube dan TikTok.
+> Cookies bersifat **opsional**. Untuk `/ig` post publik, bot memakai scraper dan tidak butuh cookies. Cookies hanya dipakai sebagai fallback (mis. post privat atau butuh login).
+
+| Env | Dipakai oleh |
+| :--- | :--- |
+| `YT_COOKIES` | `/yt` dan `/ytmp3` |
+| `IG_COOKIES` | Fallback `/ig` saat scraper gagal |
+| `FB_COOKIES` | Fallback `/fb` saat plugin Facebook gagal |
+| `X_COOKIES` | Fallback video HLS `/x` dan `/twitter` |
+| `TT_COOKIES` | `/tt` dan `/tiktok` |
 
 ---
 
