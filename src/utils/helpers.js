@@ -1,5 +1,7 @@
 const logger = require('./logger');
-const { delay } = require('@whiskeysockets/baileys');
+const { delay, jidNormalizedUser } = require('@whiskeysockets/baileys');
+
+const toNumber = (jid) => (jid || '').split('@')[0].split(':')[0];
 
 class BotHelpers {
     /**
@@ -105,6 +107,20 @@ class BotHelpers {
     }
 
     /**
+     * Reply voice note (PTT) dengan typing simulation & REPLY
+     */
+    async replyVoiceNoteWithTyping(sock, msg, buffer, mimetype = 'audio/ogg; codecs=opus', typingDuration = 2000) {
+        await this.simulateTyping(sock, msg, typingDuration);
+        return await sock.sendMessage(msg.key.remoteJid, {
+            audio: buffer,
+            mimetype,
+            ptt: true
+        }, {
+            quoted: msg
+        });
+    }
+
+    /**
      * Reply sticker dengan typing simulation & REPLY
      */
     async replyStickerWithTyping(sock, msg, buffer, typingDuration = 2000) {
@@ -184,6 +200,67 @@ class BotHelpers {
             logger.error('Error downloading media:', error);
             return null;
         }
+    }
+
+    /**
+     * Ambil nomor pengirim (PN) dari sebuah pesan.
+     * WhatsApp kini memakai LID (@lid) sebagai identitas utama, sehingga
+     * remoteJid/participant bisa berupa LID. Nomor asli biasanya tetap ikut
+     * dikirim di field alternatif (remoteJidAlt / participantAlt).
+     * Return: nomor tanpa "@s.whatsapp.net", atau null bila tidak bisa di-resolve.
+     */
+    async resolveSenderNumber(sock, msg) {
+        const key = msg?.key || {};
+        const isGroup = (key.remoteJid || '').endsWith('@g.us');
+        const primary = isGroup ? key.participant : key.remoteJid;
+        const alt = isGroup ? key.participantAlt : key.remoteJidAlt;
+
+        // 1. Nomor biasanya sudah ikut di stanza pesan
+        if (typeof primary === 'string' && primary.endsWith('@s.whatsapp.net')) {
+            return toNumber(primary);
+        }
+        if (typeof alt === 'string' && alt.endsWith('@s.whatsapp.net')) {
+            return toNumber(alt);
+        }
+
+        // 2. Fallback: mapping LID -> PN yang tersimpan di auth_baileys
+        const lid = typeof primary === 'string' && primary.endsWith('@lid')
+            ? primary
+            : (typeof alt === 'string' && alt.endsWith('@lid') ? alt : null);
+
+        if (!lid) return null;
+
+        try {
+            const pn = await sock?.signalRepository?.lidMapping?.getPNForLID(lid);
+            if (pn) return toNumber(jidNormalizedUser(pn));
+        } catch (error) {
+            logger.warn(`Gagal resolve LID ${lid} ke nomor: ${error.message}`);
+        }
+
+        return null;
+    }
+
+    /**
+     * Cek apakah nomor (hasil resolveSenderNumber) adalah admin.
+     * ADMIN_NUMBER boleh ditulis dengan atau tanpa "@s.whatsapp.net".
+     */
+    isAdminNumber(number) {
+        const admin = toNumber(process.env.ADMIN_NUMBER);
+        return !!number && !!admin && number === admin;
+    }
+
+    /**
+     * Guard untuk command admin-only.
+     * Return true bila pengirim admin; bila bukan, kirim penolakan dan return false.
+     */
+    async requireAdmin(sock, msg, commandName = 'command') {
+        const senderNumber = await this.resolveSenderNumber(sock, msg);
+        if (this.isAdminNumber(senderNumber)) return true;
+
+        logger.warn(`Unauthorized ${commandName} attempt from ${senderNumber || msg?.key?.remoteJid}`);
+        await this.reactError(sock, msg);
+        await this.replyWithTyping(sock, msg, '❌ Command ini hanya bisa digunakan oleh admin!');
+        return false;
     }
 }
 

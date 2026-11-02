@@ -15,16 +15,8 @@ class CleanUINCommand {
             logger.info('Executing /cleanuin command');
             await helpers.reactCommandReceived(sock, msg);
 
-            // Get sender info
-            const senderId = msg.key.remoteJid;
-            const adminNumber = process.env.ADMIN_NUMBER;
-
-            // Check if sender is admin
-            if (senderId !== adminNumber) {
-                logger.warn(`Unauthorized cleanup attempt from ${senderId}`);
-                await helpers.reactError(sock, msg);
-                return helpers.replyWithTyping(sock, msg, '❌ Command ini hanya bisa digunakan oleh admin!');
-            }
+            // Check if sender is admin (aman untuk PN maupun LID)
+            if (!await helpers.requireAdmin(sock, msg, '/cleanuin')) return;
 
             logger.info('Admin authorized, proceeding with cleanup');
             await helpers.reactProcessing(sock, msg);

@@ -85,6 +85,7 @@ class MatkulCommand {
     async addMatkul(msg, sock, messageBody) {
         try {
             logger.info('Processing /addmatkul command');
+            if (!await helpers.requireAdmin(sock, msg, '/addmatkul')) return;
             await helpers.reactCommandReceived(sock, msg);
 
             // Parse command: /addmatkul "Nama Matkul" "Hari" "07.00-08.45" "Tempat"
@@ -197,6 +198,7 @@ class MatkulCommand {
     async deleteMatkul(msg, sock, messageBody) {
         try {
             logger.info('Processing /deletematkul command');
+            if (!await helpers.requireAdmin(sock, msg, '/deletematkul')) return;
             await helpers.reactCommandReceived(sock, msg);
 
             const match = messageBody.match(/\/deletematkul\s+(\d+)/i);
@@ -248,6 +250,7 @@ class MatkulCommand {
     async deleteAllMatkul(msg, sock, messageBody) {
         try {
             logger.info('Processing /deleteallmatkul command');
+            if (!await helpers.requireAdmin(sock, msg, '/deleteallmatkul')) return;
             await helpers.reactCommandReceived(sock, msg);
 
             const matkulList = this.loadMatkul();
@@ -282,22 +285,24 @@ class MatkulCommand {
             await helpers.reactCommandReceived(sock, msg);
 
             const helpText = `*📚 BANTUAN COMMAND MATKUL*\n\n` +
-                `*1. /addmatkul* "Nama Matkul" "Hari" "Jam" "Tempat"\n` +
-                `    Menambah jadwal matkul baru\n` +
+                `*1. /addmatkul* 🔒 "Nama Matkul" "Hari" "Jam" "Tempat"\n` +
+                `    Menambah jadwal matkul baru (admin)\n` +
                 `    Contoh: /addmatkul "Algoritma" "Senin" "07.00-08.45" "Ruang 101"\n\n` +
                 
                 `*2. /listmatkul*\n` +
                 `    Menampilkan daftar semua matkul\n\n` +
                 
-                `*3. /deletematkul* [nomor]\n` +
-                `    Menghapus matkul berdasarkan nomor\n` +
+                `*3. /deletematkul* 🔒 [nomor]\n` +
+                `    Menghapus matkul berdasarkan nomor (admin)\n` +
                 `    Contoh: /deletematkul 1\n\n` +
                 
-                `*4. /deleteallmatkul*\n` +
-                `    Menghapus semua jadwal matkul\n\n` +
+                `*4. /deleteallmatkul* 🔒\n` +
+                `    Menghapus semua jadwal matkul (admin)\n\n` +
                 
                 `*5. /matkul*\n` +
-                `    Menampilkan bantuan ini\n\n`;
+                `    Menampilkan bantuan ini\n\n` +
+                
+                `_🔒 = hanya admin_`;
 
             await helpers.reactSuccess(sock, msg);
             await helpers.replyWithTyping(sock, msg, helpText);

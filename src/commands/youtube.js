@@ -64,15 +64,23 @@ class YouTubeDownloader {
 
             const outputTemplate = path.join(this.tempDir, `yt_audio_${Date.now()}.%(ext)s`);
 
-            await ytdlpExec(url, {
+            // --print dipakai sekaligus untuk mengambil judul video tanpa
+            // request tambahan. Prefix mencegah output dianggap JSON.
+            const printedTitle = await ytdlpExec(url, {
                 ...this.getYtDlpCommonOptions(),
                 extractAudio: true,
                 audioFormat: 'mp3',
                 audioQuality: 0,
                 output: outputTemplate,
                 preferFreeFormats: true,
-                addMetadata: true
+                addMetadata: true,
+                noSimulate: true,
+                print: 'VIDEO_TITLE:%(title)s'
             });
+
+            const title = typeof printedTitle === 'string' && printedTitle.startsWith('VIDEO_TITLE:')
+                ? printedTitle.slice('VIDEO_TITLE:'.length)
+                : printedTitle;
 
             const expectedPath = outputTemplate.replace('.%(ext)s', '.mp3');
             tempFilePath = expectedPath;
@@ -91,11 +99,12 @@ class YouTubeDownloader {
             }
 
             const audioBuffer = fs.readFileSync(tempFilePath);
+            const fileName = `${this.buildAudioFileName(title)}.mp3`;
 
-            logger.info('Mengirim audio...');
+            logger.info(`Mengirim audio sebagai dokumen: ${fileName}`);
 
-            // ✅ REPLY KE USER
-            await helpers.replyAudioWithTyping(sock, msg, audioBuffer, 1500);
+            // Kirim sebagai dokumen audio supaya tampil seperti file, bukan VN.
+            await helpers.replyDocumentWithTyping(sock, msg, audioBuffer, fileName, 'audio/mpeg', '', 1500);
 
             await helpers.reactSuccess(sock, msg);
             logger.success('Audio berhasil dikirim! ');
@@ -221,6 +230,18 @@ class YouTubeDownloader {
 
     cleanUrl(url) {
         return (url || '').replace(/[)\].,;:!?'"]+$/, '');
+    }
+
+    buildAudioFileName(title) {
+        const cleaned = (typeof title === 'string' ? title : '')
+            .replace(/[\r\n\t]+/g, ' ')
+            .replace(/[\\/:*?"<>|]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .replace(/^[.\s]+|[.\s]+$/g, '')
+            .slice(0, 120)
+            .trim();
+
+        return cleaned || `ytmp3-${Date.now()}`;
     }
 
     getTextFromMessage(message) {

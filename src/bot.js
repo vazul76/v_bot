@@ -11,6 +11,7 @@ const newsMonitor = require('./utils/newsMonitor');
 
 // Commands
 const stickerCommand = require('./commands/sticker');
+const showsCommand = require('./commands/shows');
 const youtubeCommand = require('./commands/youtube');
 const facebookCommand = require('./commands/facebook');
 const tiktokCommand = require('./commands/tiktok');
@@ -57,7 +58,7 @@ class WABot {
     registerCommands() {
         // Collect all commands from command modules
         const modules = [
-            stickerCommand, youtubeCommand, facebookCommand, tiktokCommand,
+            stickerCommand, showsCommand, youtubeCommand, facebookCommand, tiktokCommand,
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, testCommand,
             priceCommand, bbmCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand,
@@ -259,7 +260,8 @@ class WABot {
             if (!text) return;
 
             const body = text.trim();
-            logger.info(`Pesan diterima: "${body}" dari ${msg.key.remoteJid}`);
+            const senderNumber = await this.resolveSenderNumber(msg);
+            logger.info(`Pesan diterima: "${body}" dari ${senderNumber}${this.getChatSuffix(msg)}`);
 
             // Cek prefix
             if (body.startsWith(this.prefix)) {
@@ -316,12 +318,36 @@ class WABot {
         return typeof remoteJid === 'string' && remoteJid.endsWith('@g.us');
     }
 
+    /**
+     * Info konteks chat untuk log: hanya grup yang ditampilkan.
+     * Contoh: " di 120363198302441256@g.us"
+     */
+    getChatSuffix(msg) {
+        const jid = msg?.key?.remoteJid;
+        return this.isGroupChat(jid) ? ` di ${jid}` : '';
+    }
+
     getBotJid() {
         return this.normalizeJid(this.sock?.user?.id || '');
     }
 
     normalizeJid(jid) {
         return (jid || '').replace(/:\d+@/g, '@');
+    }
+
+    /**
+     * Nomor pengirim untuk keperluan log.
+     * Delegasi ke helpers agar logika LID -> PN satu sumber dengan command admin.
+     * Return: nomor tanpa "@s.whatsapp.net", atau "LID:<id>" bila tidak bisa di-resolve.
+     */
+    async resolveSenderNumber(msg) {
+        const number = await helpers.resolveSenderNumber(this.sock, msg);
+        if (number) return number;
+
+        const key = msg.key || {};
+        const isGroup = this.isGroupChat(key.remoteJid);
+        const jid = isGroup ? key.participant : key.remoteJid;
+        return jid ? `LID:${this.normalizeJid(jid).split('@')[0]}` : 'unknown';
     }
 
     async isReplyToBot(msg, botJid = this.getBotJid()) {
@@ -409,7 +435,6 @@ class WABot {
 │   └ Video/GIF → Animated sticker 🎬
 ├ \`/stext [teks]\` - Gambar → Sticker + Teks
 ├ \`/toimg\` - Sticker → Gambar/Video
-└ \`/showimg\` - Kirim ulang gambar/video (termasuk sekali lihat)
 
 *📥 DOWNLOADER*
 ├ \`/ytmp3 [link]\` - YouTube → MP3 (16MB max)

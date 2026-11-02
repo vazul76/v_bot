@@ -11,6 +11,7 @@ class IdGrupCommand {
     async execute(msg, sock) {
         try {
             logger.info('Executing /idgrup command');
+            if (!await helpers.requireAdmin(sock, msg, '/idgrup')) return;
             await helpers.reactCommandReceived(sock, msg);
             await helpers.reactProcessing(sock, msg);
 

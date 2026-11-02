@@ -22,7 +22,7 @@
 - **Sticker to Image**: Konversi kembali sticker (WebP) menjadi gambar (PNG) yang sudah di-trim transparasinya.
 
 ### 📥 Social Media Downloader
-- **YouTube Downloader**: Download video (MP4) atau audio (MP3) dari link watch, shorts, live, music, dan youtu.be.
+- **YouTube Downloader**: Download video (MP4) atau audio (MP3, dikirim sebagai dokumen audio) dari link watch, shorts, live, music, dan youtu.be.
 - **Twitter/X Downloader**: Download foto (termasuk multi-foto), video, dan GIF dari post Twitter/X.
 - **Instagram Downloader**: Download video, Reels, foto, dan carousel Instagram.
 - **TikTok Downloader**: Download video TikTok tanpa watermark (foto/slideshow belum didukung).
@@ -136,8 +136,7 @@ Gunakan prefix `/` (slash) diikuti oleh perintah:
 | `/s` | Gambar → Sticker | - |
 | `/stext [Teks]` | Gambar → Sticker + Teks | - |
 | `/toimg` | (Reply Sticker) → Gambar | - |
-| `/showimg` | (Reply Gambar/Video) → Kirim ulang sebagai gambar/video | - |
-| `/ytmp3 [Link]` | Download Audio YouTube (MP3) | Max 16MB |
+| `/ytmp3 [Link]` | Download Audio YouTube (MP3, dikirim sebagai dokumen; nama file mengikuti judul video) | Max 16MB |
 | `/yt [Link]` | Download Video YouTube (MP4) | Max 100MB |
 | `/fb [Link]` | Download Media Facebook (Video/Foto) | Max 100MB |
 | `/tt [Link]` | Download Video TikTok (foto/slideshow belum didukung) | Max 100MB |
