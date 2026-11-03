@@ -69,12 +69,19 @@ class BotHelpers {
     /**
      * Reply image dengan typing simulation & REPLY
      */
-    async replyImageWithTyping(sock, msg, buffer, caption = '', typingDuration = 2000) {
+    async replyImageWithTyping(sock, msg, buffer, caption = '', typingDuration = 2000, mentions = []) {
         await this.simulateTyping(sock, msg, typingDuration);
-        return await sock.sendMessage(msg.key.remoteJid, {
+
+        const content = {
             image: buffer,
             caption
-        }, {
+        };
+
+        if (Array.isArray(mentions) && mentions.length) {
+            content.mentions = mentions;
+        }
+
+        return await sock.sendMessage(msg.key.remoteJid, content, {
             quoted: msg
         });
     }
@@ -82,13 +89,20 @@ class BotHelpers {
     /**
      * Reply video dengan typing simulation & REPLY
      */
-    async replyVideoWithTyping(sock, msg, buffer, caption = '', typingDuration = 2000) {
+    async replyVideoWithTyping(sock, msg, buffer, caption = '', typingDuration = 2000, mentions = []) {
         await this.simulateTyping(sock, msg, typingDuration);
-        return await sock.sendMessage(msg.key.remoteJid, {
-            video:  buffer,
+
+        const content = {
+            video: buffer,
             caption,
             gifPlayback: false
-        }, {
+        };
+
+        if (Array.isArray(mentions) && mentions.length) {
+            content.mentions = mentions;
+        }
+
+        return await sock.sendMessage(msg.key.remoteJid, content, {
             quoted: msg
         });
     }

@@ -35,9 +35,11 @@ class ShowsCommand {
 
             await helpers.reactProcessing(sock, msg);
 
+            const caption = mediaInfo.caption || '';
+
             if (mediaInfo.type === 'video') {
                 logger.info('Mengirim ulang video...');
-                await helpers.replyVideoWithTyping(sock, msg, media, '', 1500);
+                await helpers.replyVideoWithTyping(sock, msg, media, caption, 1500, mediaInfo.mentions || []);
             } else if (mediaInfo.type === 'audio') {
                 await this.sendVoiceNote(sock, msg, media, mediaInfo);
             } else {
@@ -45,7 +47,7 @@ class ShowsCommand {
                 const pngBuffer = await sharp(media).png().toBuffer();
 
                 logger.info('Mengirim ulang sebagai gambar...');
-                await helpers.replyImageWithTyping(sock, msg, pngBuffer, '', 1500);
+                await helpers.replyImageWithTyping(sock, msg, pngBuffer, caption, 1500, mediaInfo.mentions || []);
             }
 
             await helpers.reactSuccess(sock, msg);
@@ -65,7 +67,12 @@ class ShowsCommand {
         const directInfo = this.extractMediaInfo(direct);
 
         if (directInfo) {
-            return { ...directInfo, source: 'direct', content: direct };
+            return {
+                ...directInfo,
+                source: 'direct',
+                content: direct,
+                caption: this.stripCommandCaption(directInfo.caption)
+            };
         }
 
         const quoted = await helpers.getQuotedMessage(msg);
@@ -80,8 +87,21 @@ class ShowsCommand {
     }
 
     extractMediaInfo(content) {
-        if (content?.imageMessage) return { type: 'image' };
-        if (content?.videoMessage) return { type: 'video' };
+        if (content?.imageMessage) {
+            return {
+                type: 'image',
+                caption: content.imageMessage.caption || '',
+                mentions: content.imageMessage.contextInfo?.mentionedJid || []
+            };
+        }
+
+        if (content?.videoMessage) {
+            return {
+                type: 'video',
+                caption: content.videoMessage.caption || '',
+                mentions: content.videoMessage.contextInfo?.mentionedJid || []
+            };
+        }
 
         if (content?.audioMessage) {
             return {
@@ -92,6 +112,12 @@ class ShowsCommand {
         }
 
         return null;
+    }
+
+    stripCommandCaption(caption) {
+        return String(caption || '')
+            .replace(/^\s*\/shows(?:\s+|$)/i, '')
+            .trim();
     }
 
     async getMediaFromMessage(msg, sock, mediaInfo = null) {
