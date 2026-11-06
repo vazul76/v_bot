@@ -8,6 +8,9 @@ const helpers = require('./utils/helpers');
 const healthChecker = require('./utils/healthChecker');
 const autoUpdater = require('./utils/autoUpdater');
 const newsMonitor = require('./utils/newsMonitor');
+const catalog = require('./utils/commandCatalog');
+const pendingActions = require('./utils/pendingActions');
+const intent = require('./utils/commandIntent');
 
 // Commands
 const stickerCommand = require('./commands/sticker');
@@ -62,7 +65,7 @@ class WABot {
             instagramCommand, twitterCommand, pollCommand, ttsCommand,
             translateCommand, scanCommand, weatherCommand, testCommand,
             priceCommand, bbmCommand, imsakiyahCommand, qrCommand, nslookupCommand, encodeCommand, cleanuinCommand, newsuinCommand,
-            newsfstCommand, idgrupCommand, askCommand, matkulCommand, threadsCommand
+            newsfstCommand, idgrupCommand, matkulCommand, threadsCommand
         ];
 
         modules.forEach(module => {
@@ -257,50 +260,98 @@ class WABot {
 
             // Extract text
             const text = this.getMessageText(msg);
-            if (!text) return;
-
-            const body = text.trim();
             const senderNumber = await this.resolveSenderNumber(msg);
+            const ctx = await this.getConversationContext(msg, senderNumber);
+            const body = (text || '').trim();
+
+            if (!body) {
+                // Media tanpa caption tetap diproses kalau ada saran yang menunggu media.
+                if (intent.getMediaType(msg)) {
+                    logger.info(`Media diterima tanpa teks dari ${senderNumber}${this.getChatSuffix(msg)}`);
+                    if (await this.handlePendingAction(msg, '', ctx)) return;
+                }
+                return;
+            }
+
             logger.info(`Pesan diterima: "${body}" dari ${senderNumber}${this.getChatSuffix(msg)}`);
 
-            // Cek prefix
-            if (body.startsWith(this.prefix)) {
-                // Parse command
-                const commandBody = body.slice(this.prefix.length).trim();
+            // Deteksi tag bot lebih awal supaya "@bot /s" dan "@bot .s" tetap terbaca.
+            const mentionedBot = ctx.isGroup ? this.isBotMentioned(msg, body) : false;
+            const cleanBody = mentionedBot ? this.stripBotMentions(body).trim() : body;
+
+            // 1. Command eksplisit "/..." (boleh didahului tag bot)
+            if (cleanBody.startsWith(this.prefix)) {
+                pendingActions.clear(ctx.chatId, ctx.senderId);
+
+                const commandBody = cleanBody.slice(this.prefix.length).trim();
                 const args = commandBody.split(/ +/);
                 const command = args[0].toLowerCase();
 
                 logger.info(`Command terdeteksi: "${command}"`);
-
-                // Route command
-                await this.routeCommand(command, body, msg);
+                await this.routeCommand(command, cleanBody, msg);
                 return;
             }
 
-            const isGroupChat = this.isGroupChat(msg.key.remoteJid);
+            // Deteksi reply bot (dipakai untuk menu & AI di grup)
+            const replyToBot = ctx.isGroup ? await this.isReplyToBot(msg) : false;
 
-            if (isGroupChat) {
-                const replyToBot = await this.isReplyToBot(msg);
-
-                // Di grup, AI non-command hanya aktif jika reply ke pesan bot
-                if (!replyToBot) {
-                    logger.info('Pesan grup non-command non-reply diabaikan (AI hanya via /ask atau reply bot)');
-                    return;
+            // Kalau isi pesan baru hanya tag bot, pakai teks pesan yang di-reply.
+            let quotedText = '';
+            if (ctx.isGroup && (mentionedBot || replyToBot) && !cleanBody) {
+                const quoted = await helpers.getQuotedMessage(msg);
+                if (quoted) {
+                    quotedText = (askCommand.getTextFromMessage(quoted.message) || '').trim();
                 }
             }
 
-            const promptText = body;
+            const effectiveText = quotedText || cleanBody;
 
-            if (!promptText) {
-                logger.info('Prompt AI kosong setelah diproses, diabaikan');
+            // 2. Permintaan menu / bantuan.
+            //    Di grup hanya merespons jika bot di-tag atau di-reply agar tidak spam.
+            if (intent.isMenuRequest(effectiveText) && (!ctx.isGroup || mentionedBot || replyToBot)) {
+                pendingActions.clear(ctx.chatId, ctx.senderId);
+                await this.sendHelp(msg, ctx);
                 return;
             }
 
+            // 3. Lanjutan saran (ya / 1 / 2 / isi argumen / media)
+            if (await this.handlePendingAction(msg, cleanBody, ctx)) return;
+
+            // 4. Prefix salah: .s / !s
+            if (await this.handleWrongPrefix(msg, cleanBody, ctx)) return;
+
+            // 5. Gate grup: AI & saran hanya aktif jika tag/reply
+            if (ctx.isGroup && !mentionedBot && !replyToBot) {
+                logger.info('Pesan grup non-command diabaikan (bukan reply/tag bot)');
+                return;
+            }
+
+            const promptText = effectiveText;
+
+            if (!promptText) {
+                logger.info('Prompt kosong setelah diproses, diabaikan');
+                return;
+            }
+
+            if (ctx.isGroup) {
+                logger.info(
+                    `AI trigger di grup via ${mentionedBot ? 'tag' : ''}${mentionedBot && replyToBot ? ' + ' : ''}${replyToBot ? 'reply' : ''}`
+                );
+            }
+
+            // 6. Pertanyaan "cara pakai ..." -> bantuan command
+            if (await this.handleHelpQuestion(msg, promptText, ctx)) return;
+
+            // 7. Intent command (rule-based dulu, AI kalau perlu)
+            if (await this.handleCommandIntent(msg, promptText, ctx)) return;
+
+            // 8. Fallback: AI chat biasa
             logger.info(`Auto AI trigger terdeteksi: "${promptText}"`);
             await askCommand.processAndReply(this.sock, msg, promptText, {
                 showReactions: false,
                 includeQuotedContext: true,
-                preserveQuotedOnlyPrompt: false
+                preserveQuotedOnlyPrompt: Boolean(quotedText),
+                catalogText: catalog.buildAiCatalogText(ctx.scope, { executableOnly: false })
             });
 
         } catch (error) {
@@ -314,6 +365,608 @@ class WABot {
         }
     }
 
+    /**
+     * Konteks percakapan + scope katalog.
+     * Aturan: admin hanya dapat katalog privat di DM; grup selalu public.
+     */
+    async getConversationContext(msg, senderNumber) {
+        const chatId = msg?.key?.remoteJid || '';
+        const isGroup = this.isGroupChat(chatId);
+        const senderId = senderNumber
+            || (isGroup ? msg?.key?.participant : msg?.key?.remoteJid)
+            || chatId;
+        const isAdmin = helpers.isAdminNumber(senderNumber);
+
+        return {
+            chatId,
+            senderId,
+            isGroup,
+            isAdmin,
+            scope: catalog.getCatalogScope({ isGroup, isAdmin })
+        };
+    }
+
+    getMediaLabel(command) {
+        const types = command?.mediaTypes || [];
+        if (types.includes('sticker')) return 'stiker';
+        if (types.includes('image') && types.includes('video')) return 'gambar/video';
+        if (types.includes('image')) return 'gambar';
+        if (types.includes('video')) return 'video';
+        if (types.includes('audio')) return 'audio/voice note';
+        if (types.includes('document')) return 'file';
+        return 'media (gambar/video)';
+    }
+
+    isActionLike(text) {
+        if (intent.extractUrl(text)) return true;
+        return /\b(download|unduh|bikin|buat|bikinin|ubah|jadiin|jadikan|cek|scan|generate|kirim|terjemah|translate|cari|tolong|minta)\b/i.test(text);
+    }
+
+    parseChoice(body, options = []) {
+        const norm = intent.normalize(body);
+        if (!norm) return -1;
+
+        const number = Number.parseInt(norm, 10);
+        if (Number.isInteger(number) && number >= 1 && number <= options.length) {
+            return number - 1;
+        }
+
+        const tokens = new Set(norm.split(' ').filter(Boolean));
+
+        // "tanpa teks" / "tidak pakai teks" -> pilih opsi /s
+        if (/\b(tanpa|tidak|gak|nggak)\b/.test(norm) && tokens.has('teks')) {
+            const index = options.findIndex(option => option.command === 's');
+            if (index >= 0) return index;
+        }
+
+        // "pakai teks" / "dengan tulisan" -> pilih opsi yang butuh teks
+        if (/\b(pakai|dengan|ada)\b/.test(norm) && (tokens.has('teks') || tokens.has('tulisan'))) {
+            const index = options.findIndex(option => option.needsText || option.command === 'stext');
+            if (index >= 0) return index;
+        }
+
+        for (let i = 0; i < options.length; i++) {
+            const command = catalog.findCommand(options[i].command);
+            if (!command) continue;
+
+            const names = [command.name, ...(command.aliases || [])]
+                .map(item => String(item).toLowerCase());
+
+            if (names.some(name => tokens.has(name))) return i;
+        }
+
+        return -1;
+    }
+
+    /**
+     * Tangani lanjutan saran: konfirmasi, pilihan, argumen, atau media.
+     * Return true jika pesan sudah dikonsumsi.
+     */
+    async handlePendingAction(msg, body, ctx) {
+        const action = pendingActions.get(ctx.chatId, ctx.senderId);
+        if (!action) return false;
+
+        // Jangan hapus pending hanya karena pesan berisi tag tanpa teks.
+        if (!String(body || '').trim() && !intent.getMediaType(msg)) return false;
+
+        const norm = intent.normalize(body);
+        const isYes = /^(ya|y|yes|yup|boleh|gas|lanjut|oke|ok|setuju|jalankan|silakan)\b/.test(norm);
+        const isNo = /^(tidak|enggak|gak|nggak|no|batal|cancel|jangan|stop)\b/.test(norm);
+
+        const cancel = async (message = 'Oke, dibatalkan.') => {
+            pendingActions.clear(ctx.chatId, ctx.senderId);
+            await helpers.replyWithTyping(this.sock, msg, message);
+        };
+
+        if (action.stage === 'confirm') {
+            if (isYes) {
+                pendingActions.clear(ctx.chatId, ctx.senderId);
+                await this.executePendingAction(action, msg, ctx);
+                return true;
+            }
+
+            if (isNo) {
+                await cancel();
+                return true;
+            }
+
+            // Bukan jawaban konfirmasi -> lepas pending agar tidak nyangkut
+            pendingActions.clear(ctx.chatId, ctx.senderId);
+            return false;
+        }
+
+        if (action.stage === 'choose') {
+            const index = this.parseChoice(body, action.options || []);
+
+            if (index >= 0) {
+                await this.applyChoice(action, index, msg, ctx);
+                return true;
+            }
+
+            if (isNo) {
+                await cancel();
+                return true;
+            }
+
+            pendingActions.clear(ctx.chatId, ctx.senderId);
+            return false;
+        }
+
+        if (action.stage === 'need_arg') {
+            if (isNo) {
+                await cancel();
+                return true;
+            }
+
+            const args = body.trim();
+
+            if (!args) {
+                // User mengirim media tanpa teks saat diminta argumen (mis. /scan).
+                if (action.commandDef?.optionalMedia && intent.getMediaType(msg)) {
+                    pendingActions.clear(ctx.chatId, ctx.senderId);
+                    await this.executePendingAction({ ...action, args: '', originalMsg: msg }, msg, ctx);
+                    return true;
+                }
+                return true;
+            }
+
+            const validation = intent.validateArgs(action.commandDef, args);
+            if (!validation.ok) {
+                await helpers.replyWithTyping(this.sock, msg, `❌ ${validation.error}`);
+                return true;
+            }
+
+            action.args = validation.args;
+            action.command = action.commandDef.name;
+            action.stage = 'need_media';
+
+            if (intent.hasRequiredMedia(action.commandDef, action.originalMsg)) {
+                pendingActions.clear(ctx.chatId, ctx.senderId);
+                await this.executePendingAction(action, msg, ctx);
+                return true;
+            }
+
+            pendingActions.set(ctx.chatId, ctx.senderId, action);
+            await helpers.replyWithTyping(
+                this.sock,
+                msg,
+                `Sekarang kirim atau reply ${this.getMediaLabel(action.commandDef)} dulu ya. Balas *batal* untuk membatalkan.`
+            );
+            return true;
+        }
+
+        if (action.stage === 'need_media') {
+            if (isNo) {
+                await cancel();
+                return true;
+            }
+
+            if (!intent.getMediaType(msg)) {
+                await helpers.replyWithTyping(
+                    this.sock,
+                    msg,
+                    `Kirim atau reply ${this.getMediaLabel(action.commandDef)} dulu ya. Balas *batal* untuk membatalkan.`
+                );
+                return true;
+            }
+
+            // Kalau user mengirim media dengan caption, coba ambil argumen dari caption.
+            if (!action.args) {
+                const caption = (this.getMessageText(msg) || '').trim();
+                if (caption) {
+                    if (action.commandDef.name === 'stext') {
+                        action.args = caption.slice(0, 40);
+                    } else {
+                        const extracted = intent.extractArgs(action.commandDef, caption);
+                        if (extracted) action.args = extracted;
+                    }
+                }
+            }
+
+            const missing = intent.getMissingArg(action.commandDef, action.args);
+            if (missing) {
+                action.stage = 'need_arg';
+                action.argPrompt = intent.buildArgPrompt(action.commandDef);
+                pendingActions.set(ctx.chatId, ctx.senderId, action);
+                await helpers.replyWithTyping(this.sock, msg, action.argPrompt);
+                return true;
+            }
+
+            pendingActions.clear(ctx.chatId, ctx.senderId);
+            await this.executePendingAction({ ...action, originalMsg: msg }, msg, ctx);
+            return true;
+        }
+
+        pendingActions.clear(ctx.chatId, ctx.senderId);
+        return false;
+    }
+
+    async applyChoice(action, index, msg, ctx) {
+        const option = (action.options || [])[index];
+        if (!option) return;
+
+        const commandDef = catalog.findCommand(option.command);
+        if (!commandDef) return;
+
+        let args = option.args || '';
+
+        if (option.needsText && !args) {
+            action.stage = 'need_arg';
+            action.command = commandDef.name;
+            action.commandDef = commandDef;
+            action.args = '';
+            action.argPrompt = intent.buildArgPrompt(commandDef);
+            pendingActions.set(ctx.chatId, ctx.senderId, action);
+            await helpers.replyWithTyping(this.sock, msg, action.argPrompt);
+            return;
+        }
+
+        const validation = intent.validateArgs(commandDef, args);
+        if (!validation.ok) {
+            action.stage = 'need_arg';
+            action.command = commandDef.name;
+            action.commandDef = commandDef;
+            action.args = '';
+            action.argPrompt = `❌ ${validation.error}\n\n${intent.buildArgPrompt(commandDef)}`;
+            pendingActions.set(ctx.chatId, ctx.senderId, action);
+            await helpers.replyWithTyping(this.sock, msg, action.argPrompt);
+            return;
+        }
+
+        args = validation.args;
+        action.command = commandDef.name;
+        action.commandDef = commandDef;
+        action.args = args;
+
+        if (!intent.hasRequiredMedia(commandDef, action.originalMsg)) {
+            action.stage = 'need_media';
+            pendingActions.set(ctx.chatId, ctx.senderId, action);
+            await helpers.replyWithTyping(
+                this.sock,
+                msg,
+                `Siap. Sekarang kirim atau reply ${this.getMediaLabel(commandDef)} dulu ya. Balas *batal* untuk membatalkan.`
+            );
+            return;
+        }
+
+        pendingActions.clear(ctx.chatId, ctx.senderId);
+        await this.executePendingAction(action, msg, ctx);
+    }
+
+    async executePendingAction(action, msg, ctx) {
+        const commandDef = action.commandDef || catalog.findCommand(action.command);
+
+        if (!commandDef) {
+            await helpers.replyWithTyping(this.sock, msg, '❌ Command tidak ditemukan.');
+            return;
+        }
+
+        // Command admin/privat/dangerous tidak pernah dieksekusi otomatis.
+        if (!commandDef.public || commandDef.adminOnly || commandDef.dangerous) {
+            await helpers.replyWithTyping(
+                this.sock,
+                msg,
+                `🔒 /${commandDef.name} tidak bisa dijalankan otomatis. Ketik command-nya manual ya.`
+            );
+            return;
+        }
+
+        const args = String(action.args || '').trim();
+        const commandBody = `/${commandDef.name}${args ? ` ${args}` : ''}`;
+        const targetMsg = action.originalMsg || msg;
+
+        logger.info(
+            `Menjalankan saran /${commandDef.name}${args ? ` (${args})` : ''} untuk ${ctx.senderId}${this.getChatSuffix(msg)}`
+        );
+
+        await this.routeCommand(commandDef.name, commandBody, targetMsg);
+    }
+
+    /**
+     * Prefix salah: .s / !s -> saran command yang benar.
+     */
+    async handleWrongPrefix(msg, body, ctx) {
+        const detected = intent.detectWrongPrefix(body);
+        if (!detected) return false;
+
+        if (['menu', 'help', 'bantuan'].includes(detected.name)) {
+            await this.sendHelp(msg, ctx);
+            return true;
+        }
+
+        const commandDef = catalog.findCommand(detected.name);
+        if (!commandDef) return false;
+
+        // Command privat hanya boleh "dilihat" admin di DM.
+        if (!commandDef.public && !ctx.scope.includePrivate) return false;
+
+        // Untuk /stext, semua teks setelah nama command adalah isi stiker.
+        // Command lain pakai extractor supaya kata pemicu tidak ikut jadi argumen.
+        const args = detected.rest
+            ? (commandDef.name === 'stext'
+                ? detected.rest
+                : intent.extractArgs(commandDef, detected.rest))
+            : '';
+
+        if (!commandDef.public || commandDef.adminOnly || commandDef.dangerous) {
+            await helpers.replyWithTyping(
+                this.sock,
+                msg,
+                `Mungkin maksudmu \`${catalog.formatUsage(commandDef)}\`?\n\n${commandDef.description}.\n\n🔒 Command ini hanya untuk admin.`
+            );
+            return true;
+        }
+
+        await this.presentSuggestion(msg, ctx, commandDef, args, 'prefix');
+        return true;
+    }
+
+    /**
+     * Tampilkan saran satu command + siapkan pending action.
+     */
+    async presentSuggestion(msg, ctx, commandDef, args, source = 'rule') {
+        if (!commandDef || !commandDef.public || commandDef.adminOnly || commandDef.dangerous) {
+            return;
+        }
+
+        let finalArgs = String(args || '').trim();
+
+        // Untuk prefix salah (.scan ...), jangan fallback ke teks lengkap:
+        // extractor sudah memutuskan apakah rest itu argumen valid atau bukan.
+        if (!finalArgs && source !== 'prefix') {
+            finalArgs = intent.extractArgs(commandDef, this.getMessageText(msg) || '');
+        }
+
+        let validationError = '';
+        const validation = intent.validateArgs(commandDef, finalArgs);
+
+        if (!validation.ok) {
+            validationError = validation.error;
+            finalArgs = '';
+        }
+
+        const missing = intent.getMissingArg(commandDef, finalArgs);
+        const hasMedia = intent.hasRequiredMedia(commandDef, msg);
+        const mediaType = intent.getMediaType(msg);
+        const needsScanTarget = commandDef.name === 'scan' && !finalArgs && !mediaType;
+        const needsArg = Boolean(missing) || needsScanTarget;
+
+        let text = `Mungkin maksudmu \`${catalog.formatUsage(commandDef)}\`?\n\n${commandDef.description}.`;
+
+        if (finalArgs) {
+            text += `\n\n📎 Argumen terdeteksi: ${finalArgs}`;
+        }
+
+        if (validationError) {
+            text += `\n\n❌ ${validationError}`;
+        }
+
+        if (needsArg) {
+            text += `\n\n${intent.buildArgPrompt(commandDef)}`;
+        } else if (!hasMedia) {
+            text += `\n\n📷 Kirim atau reply ${this.getMediaLabel(commandDef)} dulu ya.`;
+        } else {
+            text += '\n\nBalas *ya* untuk saya jalankan.';
+        }
+
+        if (source === 'ai') {
+            text += '\n\n_(disarankan AI)_';
+        }
+
+        await helpers.replyWithTyping(this.sock, msg, text);
+
+        if (needsArg) {
+            pendingActions.set(ctx.chatId, ctx.senderId, {
+                stage: 'need_arg',
+                command: commandDef.name,
+                commandDef,
+                args: finalArgs,
+                argPrompt: intent.buildArgPrompt(commandDef),
+                originalMsg: msg,
+                options: null
+            });
+            return;
+        }
+
+        if (!hasMedia) {
+            pendingActions.set(ctx.chatId, ctx.senderId, {
+                stage: 'need_media',
+                command: commandDef.name,
+                commandDef,
+                args: finalArgs,
+                originalMsg: msg,
+                options: null
+            });
+            return;
+        }
+
+        pendingActions.set(ctx.chatId, ctx.senderId, {
+            stage: 'confirm',
+            command: commandDef.name,
+            commandDef,
+            args: finalArgs,
+            originalMsg: msg,
+            options: null
+        });
+    }
+
+    /**
+     * Tampilkan beberapa pilihan command (mis. /s vs /stext).
+     */
+    async presentChoices(msg, ctx, matches, source = 'rule') {
+        const options = intent.buildChoiceOptions(matches);
+        if (options.length === 0) return;
+
+        const lines = ['Mau yang mana?', ''];
+
+        options.forEach((option, index) => {
+            lines.push(`${index + 1}. \`${option.label}\` — ${option.hint}`);
+        });
+
+        lines.push('');
+        lines.push(`Balas angka 1${options.length > 1 ? `-${options.length}` : ''}.`);
+        if (source === 'ai') lines.push('_(disarankan AI)_');
+
+        await helpers.replyWithTyping(this.sock, msg, lines.join('\n'));
+
+        pendingActions.set(ctx.chatId, ctx.senderId, {
+            stage: 'choose',
+            command: null,
+            commandDef: null,
+            args: '',
+            options,
+            originalMsg: msg
+        });
+    }
+
+    /**
+     * Pertanyaan "cara pakai ..." dijawab dari katalog.
+     * Match kuat -> deterministik (hemat kuota). Match lemah -> AI help.
+     */
+    async handleHelpQuestion(msg, text, ctx) {
+        if (!intent.isHelpQuestion(text)) return false;
+
+        const matches = intent.matchCommands(text, {
+            executableOnly: false,
+            includePrivate: ctx.scope.includePrivate,
+            threshold: 0.6
+        });
+
+        if (matches.length === 0) return false;
+
+        if (matches[0].score >= 0.85) {
+            await helpers.replyWithTyping(this.sock, msg, this.buildDeterministicHelp(matches));
+            return true;
+        }
+
+        const cached = intent.getCachedAiResult(ctx.scope, text);
+        if (cached) {
+            await helpers.replyWithTyping(this.sock, msg, cached);
+            return true;
+        }
+
+        if (askCommand.hasAiConfig() && intent.canCallAi(ctx.chatId)) {
+            try {
+                intent.markAiCall(ctx.chatId);
+                const catalogText = catalog.buildAiCatalogText(ctx.scope, { executableOnly: false });
+                const answer = await askCommand.answerCommandHelp(text, catalogText);
+
+                if (answer) {
+                    intent.setCachedAiResult(ctx.scope, text, answer);
+                    await helpers.replyWithTyping(this.sock, msg, answer);
+                    return true;
+                }
+            } catch (error) {
+                logger.warn(`AI help gagal: ${error.message}`);
+            }
+        }
+
+        await helpers.replyWithTyping(this.sock, msg, this.buildDeterministicHelp(matches));
+        return true;
+    }
+
+    buildDeterministicHelp(matches) {
+        const lines = ['Ini command yang cocok:', ''];
+
+        for (const { command } of matches.slice(0, 3)) {
+            lines.push(`\`${catalog.formatUsage(command)}\` — ${command.description}`);
+
+            if (command.examples?.length) {
+                lines.push(`   contoh: ${command.examples[0]}`);
+            }
+
+            if (command.requiresMedia) {
+                lines.push(`   butuh: ${this.getMediaLabel(command)}`);
+            }
+
+            if (command.adminOnly || !command.public) {
+                lines.push('   🔒 hanya admin');
+            }
+
+            lines.push('');
+        }
+
+        lines.push('Ketik command-nya langsung ya.');
+        return lines.join('\n');
+    }
+
+    /**
+     * Rule-based intent dulu; AI hanya fallback kalau tidak ada rule yang cocok.
+     */
+    async handleCommandIntent(msg, text, ctx) {
+        if (!text) return false;
+
+        const threshold = ctx.isGroup ? 0.6 : 0.7;
+        let matches = intent.matchCommands(text, {
+            executableOnly: true,
+            threshold
+        });
+
+        let source = 'rule';
+
+        if (matches.length === 0 &&
+            askCommand.hasAiConfig() &&
+            this.isActionLike(text) &&
+            intent.canCallAi(ctx.chatId)) {
+
+            const cached = intent.getCachedAiResult(ctx.scope, text);
+
+            if (cached) {
+                matches = this.matchesFromAiResult(cached, text);
+            } else {
+                try {
+                    intent.markAiCall(ctx.chatId);
+                    const catalogText = catalog.buildAiCatalogText(ctx.scope, { executableOnly: true });
+                    const result = await askCommand.classifyCommandIntent(text, catalogText);
+
+                    if (result) {
+                        intent.setCachedAiResult(ctx.scope, text, result);
+                        matches = this.matchesFromAiResult(result, text);
+                    }
+                } catch (error) {
+                    logger.warn(`AI intent gagal: ${error.message}`);
+                }
+            }
+
+            source = 'ai';
+        }
+
+        if (matches.length === 0) return false;
+
+        matches = matches.filter(({ command }) =>
+            command.public && !command.adminOnly && !command.dangerous
+        );
+
+        if (matches.length === 0) return false;
+
+        if (matches.length === 1) {
+            await this.presentSuggestion(msg, ctx, matches[0].command, matches[0].args, source);
+            return true;
+        }
+
+        await this.presentChoices(msg, ctx, matches, source);
+        return true;
+    }
+
+    matchesFromAiResult(result, text) {
+        if (!result || !result.command) return [];
+        if (Number(result.confidence) < 0.7) return [];
+
+        const commandDef = catalog.findCommand(result.command);
+        if (!commandDef) return [];
+        if (!commandDef.public || commandDef.adminOnly || commandDef.dangerous) return [];
+
+        const args = result.args
+            ? String(result.args).trim()
+            : intent.extractArgs(commandDef, text);
+
+        return [{
+            command: commandDef,
+            args: args || '',
+            score: Number(result.confidence) || 0.7
+        }];
+    }
+
     isGroupChat(remoteJid) {
         return typeof remoteJid === 'string' && remoteJid.endsWith('@g.us');
     }
@@ -325,6 +978,75 @@ class WABot {
     getChatSuffix(msg) {
         const jid = msg?.key?.remoteJid;
         return this.isGroupChat(jid) ? ` di ${jid}` : '';
+    }
+
+    /**
+     * Daftar identitas bot (PN dan LID) dalam format ternormalisasi.
+     * Di grup LID, tag/reply bisa memakai salah satu, jadi keduanya dibandingkan.
+     */
+    getBotIdentities() {
+        return [this.sock?.user?.id, this.sock?.user?.lid]
+            .filter(Boolean)
+            .map(jid => this.normalizeJid(jid));
+    }
+
+    /**
+     * Ambil contextInfo dari berbagai tipe pesan (tempat mentionedJid berada).
+     */
+    getMessageContextInfo(msg) {
+        const m = msg?.message || {};
+
+        return (
+            m.extendedTextMessage?.contextInfo ||
+            m.imageMessage?.contextInfo ||
+            m.videoMessage?.contextInfo ||
+            m.audioMessage?.contextInfo ||
+            m.documentMessage?.contextInfo ||
+            m.stickerMessage?.contextInfo ||
+            m.buttonsResponseMessage?.contextInfo ||
+            m.listResponseMessage?.contextInfo ||
+            m.templateButtonReplyMessage?.contextInfo ||
+            m.viewOnceMessage?.message?.extendedTextMessage?.contextInfo ||
+            null
+        );
+    }
+
+    /**
+     * Cek apakah bot di-tag di pesan grup.
+     * Utama: contextInfo.mentionedJid. Fallback: token "@nomor" di teks.
+     */
+    isBotMentioned(msg, text = '') {
+        const botIds = this.getBotIdentities();
+        if (!botIds.length) return false;
+
+        const mentioned = this.getMessageContextInfo(msg)?.mentionedJid || [];
+        if (mentioned.length) {
+            const mentionedIds = mentioned.map(jid => this.normalizeJid(jid));
+            if (mentionedIds.some(jid => botIds.includes(jid))) return true;
+        }
+
+        // Fallback: WhatsApp kadang tidak mengirim mentionedJid pada varian tertentu
+        const body = text || this.getMessageText(msg) || '';
+        return botIds.some(jid => {
+            const number = jid.split('@')[0];
+            return number && new RegExp(`@${number}\\b`).test(body);
+        });
+    }
+
+    /**
+     * Buang token tag bot dari teks, supaya prompt AI bersih.
+     * Contoh: "@62895380204873 jelaskan X" -> "jelaskan X"
+     */
+    stripBotMentions(text) {
+        let result = text || '';
+
+        for (const jid of this.getBotIdentities()) {
+            const number = jid.split('@')[0];
+            if (!number) continue;
+            result = result.replace(new RegExp(`@${number}\\b`, 'g'), '');
+        }
+
+        return result.replace(/\s+/g, ' ').trim();
     }
 
     getBotJid() {
@@ -350,13 +1072,26 @@ class WABot {
         return jid ? `LID:${this.normalizeJid(jid).split('@')[0]}` : 'unknown';
     }
 
-    async isReplyToBot(msg, botJid = this.getBotJid()) {
-        if (!botJid) return false;
+    async isReplyToBot(msg, botJids = this.getBotIdentities()) {
+        if (!botJids.length) return false;
 
         const quoted = await helpers.getQuotedMessage(msg);
         if (!quoted?.sender) return false;
 
-        return this.normalizeJid(quoted.sender) === botJid;
+        const sender = this.normalizeJid(quoted.sender);
+        if (botJids.includes(sender)) return true;
+
+        // Fallback: sender LID -> PN (grup yang memakai addressing LID)
+        if (sender.endsWith('@lid')) {
+            try {
+                const pn = await this.sock?.signalRepository?.lidMapping?.getPNForLID(sender);
+                if (pn && botJids.includes(this.normalizeJid(pn))) return true;
+            } catch (err) {
+                logger.warn(`Gagal resolve quoted sender ${sender} ke nomor: ${err.message}`);
+            }
+        }
+
+        return false;
     }
 
     async routeCommand(command, body, msg) {
@@ -364,7 +1099,9 @@ class WABot {
             // Special case for help menu
             if (command === 'menu' || command === 'help') {
                 logger.info('Menjalankan command help');
-                return await this.sendHelp(msg);
+                const senderNumber = await this.resolveSenderNumber(msg);
+                const ctx = await this.getConversationContext(msg, senderNumber);
+                return await this.sendHelp(msg, ctx);
             }
 
             const cmdConfig = this.commands.get(command);
@@ -379,6 +1116,11 @@ class WABot {
                 }
             } else {
                 logger.warn(`Command tidak dikenal: ${command}`);
+                await helpers.replyWithTyping(
+                    this.sock,
+                    msg,
+                    `❌ Command \`/${command}\` tidak dikenal.\n\nKetik \`/menu\` untuk lihat daftar command.\nAtau tulis pertanyaanmu langsung (di grup: tag/reply bot dulu).`
+                );
             }
         } catch (error) {
             logger.error(`Error executing command ${command}:`, error);
@@ -424,62 +1166,21 @@ class WABot {
         return null;
     }
 
-    async sendHelp(msg) {
+    async sendHelp(msg, ctx = {}) {
         await helpers.reactCommandReceived(this.sock, msg);
 
-        const helpText = `*🗿 V-ULTIMATE BOT v2.5*
+        // Admin hanya dapat bagian privat di DM. Grup selalu public.
+        const scope = {
+            isGroup: Boolean(ctx.isGroup),
+            isAdmin: Boolean(ctx.isAdmin),
+            includePrivate: Boolean(!ctx.isGroup && ctx.isAdmin)
+        };
 
-*📌 STICKER TOOLS*
-├ \`/s\` - Gambar/Video → Sticker
-│   ├ Gambar → Static sticker
-│   └ Video/GIF → Animated sticker 🎬
-├ \`/stext [teks]\` - Gambar → Sticker + Teks
-├ \`/toimg\` - Sticker → Gambar/Video
-
-*📥 DOWNLOADER*
-├ \`/ytmp3 [link]\` - YouTube → MP3 (16MB max)
-├ \`/yt [link]\` - YouTube → Video (100MB max) 🎬
-├ \`/fb [link]\` - Facebook Video/Photo
-├ \`/tt [link]\` - TikTok Video
-├ \`/ig [link]\` - Instagram Video/Photo
-├ \`/th [link]\` - Threads Video/Photo
-└ \`/x [link]\` - Twitter/X Video/Photo
-
-*🛡️ SECURITY*
-└ \`/scan [file/url/hash]\` - Scan via VirusTotal
-
-*📊 GROUP TOOLS*
-├ \`/poll [tanya],[opsi1],[opsi2]\` - Buat Polling
-└ \`/idgrup\` - Lihat nama grup & ID grup bot
-
-*�🗣️ TTS*
-└ \`/say [teks]\` - Text to Speech (Auto-detect)
-
-*🌐 TRANSLATE (AI)*
-└ \`/tr [lang] [teks]\` - Translate pintar
-👉 Lang: id, en, jp
-
-*🤖 AI CHAT*
-└ \`/ask [pertanyaan]\` - Tanya AI Groq langsung
-
-*🌤️ WEATHER*
-└ \`/cuaca [tempat (kelurahan)]\` - Cek Cuaca D I Yogyakarta
-
-*💹 MARKET*
-├ \`/price\` - Harga Crypto & Komoditas + IHSG (24h change)
-└ \`/bbm [provinsi]\` - Harga BBM Pertamina (default DIY)
-
-*🛠️ TOOLS*
-├ \`/qr [teks/url]\` - Generate QR Code
-├ \`/nslookup [ip/domain]\` - IP & DNS Lookup
-├ \`/encode [format] [teks]\` - Encode (base64, url, hex, binary, rot13, html)
-└ \`/decode [format] [teks]\` - Decode (format sama dengan encode)
-
-_Bot by vazul76 - v2.5.0_`;
+        const helpText = catalog.buildMenuText(scope);
 
         await helpers.replyWithTyping(this.sock, msg, helpText, 2000);
         await helpers.reactSuccess(this.sock, msg);
-        logger.success('Help message sent');
+        logger.success(`Help message sent (${scope.includePrivate ? 'admin' : 'public'})`);
     }
 
     displayBanner() {
